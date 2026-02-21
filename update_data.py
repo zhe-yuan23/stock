@@ -13,6 +13,7 @@ def update(stock_id):
     # 讀 CSV
     if os.path.exists(file_name):
         df = pd.read_csv(file_name)
+        df["date"] = df["date"].astype(str).str.replace("/", "-")
         df["date"] = pd.to_datetime(df["date"])
     else:
         df = pd.DataFrame()
@@ -40,6 +41,11 @@ def update(stock_id):
         new_data = resp.json()
         df_new = pd.DataFrame(new_data)
         df_new = df_new.loc[df_new['公司代號'] == stock_id, ['資料年月', '公司代號', '公司名稱', '營業收入-當月營收', '營業收入-去年同月增減(%)']]
+        # ===== 新增這段防呆機制 =====
+        if df_new.empty:
+            print(f"⚠️ 警告：證交所 API (上市公司) 目前找不到 {stock_id} 的最新營收資料！")
+            print("可能是 ETF、上櫃公司，或公司尚未公布。跳過此檔股票。")
+            return
         df_new.columns = ['date', 'stock_id', 'name', 'revenue_mon(bil)', 'yoy']
 
         #先把欄位轉換成數字型態 (errors='coerce' 會把髒資料轉成空值，比較安全)

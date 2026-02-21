@@ -7,13 +7,14 @@ st.set_page_config(page_title="台股營收追蹤", layout="wide")
 st.title("📈 台股營收追蹤")
 
 # 2. 側邊欄：選擇股票
-stock_ids = ["2882"]
+stock_ids = ["2881","2882","2883","2884","2885","2887","2890","2891","2892"]
 selected_stock = st.sidebar.selectbox("請選擇要查看的股票代號", stock_ids)
 
 # 3. 讀取與分析資料
 try:
     # 讀取後台自動更新好的 CSV
     df = pd.read_csv(f"data/{selected_stock}_revenue.csv")
+    df["date"] = df["date"].astype(str).str.replace("/", "-")
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date")
 
@@ -44,7 +45,7 @@ try:
         col_chart, col_table = st.columns([2, 1]) 
         
         with col_chart:
-            st.markdown("### 📈 每月營收趨勢圖")
+            st.markdown("### 📈 月營收趨勢圖")
             chart_data = df_this_year[['date', 'revenue_mon(bil)']].set_index('date')
             st.line_chart(chart_data)
 
