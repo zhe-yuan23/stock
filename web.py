@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+import altair as alt
 
 # 1. 網頁基本設定 (標題、寬度)
 st.set_page_config(page_title="台股營收追蹤", layout="wide")
@@ -153,8 +154,20 @@ elif page == "📈 個股詳細資料":
             
             with col_chart:
                 st.markdown("### 📈 月營收趨勢圖")
-                chart_data = df_this_year[['date', 'revenue_mon(bil)']].set_index('date')
-                st.line_chart(chart_data)
+                # chart_data = df_this_year[['date', 'revenue_mon(bil)']].set_index('date')
+                # st.line_chart(chart_data)
+                
+                # 使用 Altair 繪製折線圖 (預設為固定不可縮放)
+                # 順便加上 point=True，讓每個月份的數據點有小圓圈標示，視覺更清楚
+                chart = alt.Chart(df_this_year).mark_line(point=True).encode(
+                    x=alt.X('date:T', title='日期'),
+                    y=alt.Y('revenue_mon(bil):Q', title='月營收 (億)')
+                ).properties(
+                    height=350 # 這裡可以微調圖表高度，讓它跟旁邊的表格更對齊
+                )
+                
+                # 將畫好的圖表顯示在網頁上，並設定自動填滿欄位寬度
+                st.altair_chart(chart, use_container_width=True)                
 
             with col_table:
                 st.markdown(f"### 📋 近二年詳細數據")
