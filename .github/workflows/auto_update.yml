@@ -2,8 +2,8 @@ name: 自動更新台股營收資料
 
 on:
   schedule:
-    # 每個月 15 日的 UTC 時間 0 點執行 (台灣時間為早上 8 點)
-    - cron: '0 0 * * 15'
+    # 每個月 15 日的 UTC 時間 0 點執行 (台灣時間為早上 8 點)(分 時 日期 月分 星期)
+    - cron: '0 0 * * 6'
   workflow_dispatch: # 允許我們手動點擊按鈕測試
 
 permissions:
