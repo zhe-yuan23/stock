@@ -46,7 +46,7 @@ def update(stock_id):
             print(f"⚠️ 警告：證交所 API (上市公司) 目前找不到 {stock_id} 的最新營收資料！")
             print("可能是 ETF、上櫃公司，或公司尚未公布。跳過此檔股票。")
             return
-        df_new.columns = ['date', 'stock_id', 'name', 'revenue_mon(bil)', 'yoy']
+        df_new.columns = ['date', 'stock_id', 'name', 'revenue_mon(bil)', 'yoy%']
 
         #先把欄位轉換成數字型態 (errors='coerce' 會把髒資料轉成空值，比較安全)
         cols = ['revenue_mon(bil)']
