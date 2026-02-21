@@ -1,0 +1,39 @@
+name: 自動更新台股營收資料
+
+on:
+  schedule:
+    # 每個月 15 日的 UTC 時間 0 點執行 (台灣時間為早上 8 點)
+    - cron: '0 0 15 * *'
+  workflow_dispatch: # 允許我們手動點擊按鈕測試
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 下載最新的儲存庫程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Python 3.10 環境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 安裝需要的套件
+        run: |
+          pip install -r requirements.txt
+
+      - name: 執行資料更新腳本
+        run: |
+          python update_job.py
+
+      - name: 檢查並把更新後的 CSV 推回 GitHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add *_revenue.csv
+          # 如果 CSV 有變動就會 commit 並 push，沒變動就忽略
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 自動更新營收資料" && git push)
