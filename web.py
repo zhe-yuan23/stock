@@ -1,19 +1,44 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import os
 
 # 1. 網頁基本設定 (標題、寬度)
 st.set_page_config(page_title="台股營收追蹤", layout="wide")
 st.title("📈 台股營收追蹤")
 
 # 2. 側邊欄：選擇股票
-stock_ids = ["2881","2882","2883","2884","2885","2887","2890","2891","2892"]
-selected_stock = st.sidebar.selectbox("請選擇要查看的股票代號", stock_ids)
+# stock_ids = ["2881","2882","2883","2884","2885","2887","2890","2891","2892"]
+# selected_stock = st.sidebar.selectbox("請選擇要查看的股票代號", stock_ids)
+
+# 自動掃描 data 資料夾下的所有 CSV 檔
+data_files = [f for f in os.listdir("data") if f.endswith("_revenue.csv")]
+stock_list = [f.split("_")[0] for f in data_files]
+
+# 建立顯示用的標籤 (預設先用代號)
+stock_display = {}
+for sid in stock_list:
+    try:
+        # 讀取每個 CSV 的第一行來抓取中文名稱
+        temp_df = pd.read_csv(f"data/{sid}_revenue.csv", nrows=1)
+        name = temp_df['name'].iloc[0] if 'name' in temp_df.columns else "未知"
+        stock_display[sid] = name
+    except:
+        stock_display[sid] = "讀取失敗"
+
+# 側邊欄選單
+selected_stock = st.sidebar.selectbox(
+    "請選擇要查看的股票",
+    options=stock_list,
+    format_func=lambda x: f"{x} {stock_display.get(x, '')}"
+)
 
 # 3. 讀取與分析資料
 try:
     # 讀取後台自動更新好的 CSV
     df = pd.read_csv(f"data/{selected_stock}_revenue.csv")
+    stock_name = df['name'].iloc[0] if 'name' in df.columns else ""
+
     df["date"] = df["date"].astype(str).str.replace("/", "-")
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date")
@@ -33,7 +58,7 @@ try:
         revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2)
 
         # --- 以下是網頁視覺化呈現 ---
-        st.subheader(f"📊 {selected_stock} 營收進度總覽")
+        st.subheader(f"📊 {selected_stock}{stock_name} 營收進度總覽")
         col1, col2, col3 = st.columns(3)
         col1.metric(label="推估今年總營收", value=f"{esti_revenue:,.2f} 億")
         col2.metric(label=f"{today.year}年目前總營收", value=f"{revenue_sum:,.2f} 億")
