@@ -102,7 +102,7 @@ if page == "🏠 總覽首頁":
             summary_df = summary_df.drop(columns=["排序數值"])
             
             st.write(f"### {global_target_year} 年度營收目標達成進度")
-            st.table(summary_df)
+            st.dataframe(summary_df, hide_index=True, use_container_width=True)
         else:
             st.info("尚無足夠資料計算達成率。")
 
@@ -161,7 +161,7 @@ elif page == "📈 個股詳細資料":
                 # 順便加上 point=True，讓每個月份的數據點有小圓圈標示，視覺更清楚
                 chart = alt.Chart(df_this_year).mark_line(point=True).encode(
                     x=alt.X('date:T', title='日期'),
-                    y=alt.Y('revenue_mon(bil):Q', title='')
+                    y=alt.Y('revenue_mon(bil):Q', title='', scale=alt.Scale(zero=True))
                 ).properties(
                     height=350 # 這裡可以微調圖表高度，讓它跟旁邊的表格更對齊
                 )
