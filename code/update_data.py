@@ -8,11 +8,16 @@ import numpy as np
 # 檔名 stock_id_revenue.csv
 
 def update(stock_id):
-    file_name = f"data/{stock_id}_revenue.csv"
+    # file_name = f"data/{stock_id}_revenue.csv"
+    # 1. 取得目前這支程式 (update_data.py) 的絕對路徑
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # 2. 回到上一層 (..)，再進入 data 資料夾
+    file_path = os.path.join(current_dir, "..", "data", f"{stock_id}_revenue.csv")
 
     # 讀 CSV
-    if os.path.exists(file_name):
-        df = pd.read_csv(file_name)
+    if os.path.exists(file_path):
+        df = pd.read_csv(file_path)
         df["date"] = df["date"].astype(str).str.replace("/", "-")
         df["date"] = pd.to_datetime(df["date"])
     else:
@@ -87,7 +92,7 @@ def update(stock_id):
         #     df_old = pd.read_csv(file_name)
         #     df_final = pd.concat([df_old,df_new])
 
-        df_old = pd.read_csv(file_name)
+        df_old = pd.read_csv(file_path)
         df_final = pd.concat([df_old,df_new])   
-        df_final.to_csv(file_name, index=False)
+        df_final.to_csv(file_path, index=False)
     
