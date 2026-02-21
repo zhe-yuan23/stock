@@ -41,48 +41,75 @@ if page == "🏠 總覽首頁":
         st.warning("目前沒有任何股票資料。")
     else:
         summary_data = []
-        today = datetime.now()
         
+        # 1. 掃描所有資料，決定「全域最新年份」 (例如現在會抓到 2026)
+        all_years = []
+        for sid in stock_list:
+            try:
+                temp_df = pd.read_csv(f"data/{sid}_revenue.csv")
+                temp_df["date"] = temp_df["date"].astype(str).str.replace("/", "-")
+                temp_df["date"] = pd.to_datetime(temp_df["date"])
+                all_years.append(temp_df['date'].dt.year.max())
+            except:
+                pass
+        
+        # 決定全表統一比較的年份
+        global_target_year = max(all_years) if all_years else datetime.now().year
+        
+        # 2. 開始計算每檔股票在 global_target_year 的表現
         for sid in stock_list:
             try:
                 df = pd.read_csv(f"data/{sid}_revenue.csv")
                 df["date"] = df["date"].astype(str).str.replace("/", "-")
                 df["date"] = pd.to_datetime(df["date"])
                 
-                df_last_year = df[df['date'].dt.year == today.year - 1]
+                df_last_year = df[df['date'].dt.year == global_target_year - 1]
                 last_year_revenue = df_last_year['revenue_mon(bil)'].sum()
                 
-                df_this_year = df[df["date"].dt.year == today.year]
+                df_this_year = df[df["date"].dt.year == global_target_year]
+                stock_name = stock_display.get(sid, "")
                 
+                # 如果該公司今年已經有資料
                 if not df_this_year.empty and last_year_revenue > 0:
                     newest_yoy = df_this_year['yoy%'].iat[-1]
                     esti_revenue = last_year_revenue * (1 + newest_yoy/100)
                     revenue_sum = df_this_year['revenue_mon(bil)'].sum()
                     revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2)
                     
-                    stock_name = stock_display.get(sid, "")
-                    
                     summary_data.append({
                         "公司名稱": f"{sid} {stock_name}",
-                        "目前達成率 (%)": f"{revenue_achie_rate} % "
+                        "排序數值": revenue_achie_rate, # 這個隱藏欄位只用來純數字排序
+                        "目前達成率 (%)": f"{revenue_achie_rate} %"
+                    })
+                # 如果該公司今年還沒有資料 (還沒公布)
+                else:
+                    summary_data.append({
+                        "公司名稱": f"{sid} {stock_name}",
+                        "排序數值": -1.0, # 給一個負數，讓它在排序時墊底
+                        "目前達成率 (%)": "尚未公布"
                     })
             except Exception as e:
                 continue
                 
         if summary_data:
             summary_df = pd.DataFrame(summary_data)
-            # 依達成率由高到低排序
-            summary_df = summary_df.sort_values("目前達成率 (%)", ascending=False)
-            st.write(f"### {today.year} 年度營收目標達成進度")
-            st.dataframe(summary_df, hide_index=True, use_container_width=True)
+            
+            # 3. 依照「排序數值」由高到低進行真正的數學排序
+            summary_df = summary_df.sort_values("排序數值", ascending=False)
+            
+            # 排序完後，把這個用不到的工具欄位刪掉，保持畫面乾淨
+            summary_df = summary_df.drop(columns=["排序數值"])
+            
+            st.write(f"### {global_target_year} 年度營收目標達成進度")
+            st.table(summary_df)
         else:
-            st.info("尚無足夠資料計算達成率（需有去年整年及今年資料）。")
+            st.info("尚無足夠資料計算達成率。")
 
 # ==========================================
 # 區塊 C：📈 個股詳細資料
 # ==========================================
 elif page == "📈 個股詳細資料":
-    st.title("📈 個股營收追蹤")
+    st.title("個股營收追蹤")
     
     # 側邊欄選單 (只在個股詳細資料頁面顯示)
     selected_stock = st.sidebar.selectbox(
@@ -99,13 +126,14 @@ elif page == "📈 個股詳細資料":
         df["date"] = pd.to_datetime(df["date"])
         df = df.sort_values("date")
 
-        today = datetime.now()
-        
-        df_last_year = df[df['date'].dt.year == today.year - 1]
+        # 取得這檔股票最新的財報年份
+        target_year = df['date'].dt.year.max()
+
+        df_last_year = df[df['date'].dt.year == target_year - 1]
         last_year_revenue = df_last_year['revenue_mon(bil)'].sum()
-        
-        df_this_year = df[df["date"].dt.year == today.year] 
-        
+
+        df_this_year = df[df["date"].dt.year == target_year] 
+
         if not df_this_year.empty:
             newest_yoy = df_this_year['yoy%'].iat[-1]
             esti_revenue = last_year_revenue * (1 + newest_yoy/100) 
@@ -114,8 +142,9 @@ elif page == "📈 個股詳細資料":
 
             st.subheader(f"📊 {selected_stock} {stock_name} 營收進度")
             col1, col2, col3 = st.columns(3)
-            col1.metric(label="推估今年總營收", value=f"{esti_revenue:,.2f} 億")
-            col2.metric(label=f"{today.year}年目前總營收", value=f"{revenue_sum:,.2f} 億")
+            col1.metric(label=f"推估 {target_year} 年總營收", value=f"{esti_revenue:,.2f} 億")
+            # 這裡的標籤也改成 target_year
+            col2.metric(label=f"{target_year} 年目前總營收", value=f"{revenue_sum:,.2f} 億") 
             col3.metric(label="目前達成率", value=f"{revenue_achie_rate} %")
 
             st.markdown("---")
@@ -128,12 +157,22 @@ elif page == "📈 個股詳細資料":
                 st.line_chart(chart_data)
 
             with col_table:
-                st.markdown("### 📋 每月詳細數據")
-                display_df = df_this_year[['date', 'revenue_mon(bil)', 'yoy%']].copy()
+                st.markdown(f"### 📋 近二年詳細數據")
+                
+                # 抓出符合「目標年」與「前一年」的資料
+                df_two_years = df[df['date'].dt.year >= target_year - 1].copy()
+                
+                # 整理要顯示的欄位
+                display_df = df_two_years[['date', 'revenue_mon(bil)', 'yoy%']].copy()
                 display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
+                
+                # 💡 實務技巧：建議將表格「反向排序」(由新到舊)，這樣最新的資料就會在最上面，不用每次都往下滑
+                display_df = display_df.sort_values("date", ascending=True)
+                
+                # 顯示表格並隱藏 index
                 st.dataframe(display_df, hide_index=True)
         else:
-            st.warning(f"目前還沒有 {today.year} 年的營收資料喔！")
+            st.warning(f"目前還沒有 {target_year} 年的營收資料喔！")
 
     except FileNotFoundError:
         st.error(f"找不到 {selected_stock}_revenue.csv！")
