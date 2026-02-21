@@ -35,7 +35,7 @@ for sid in stock_list:
 # 區塊 B：🏠 總覽首頁
 # ==========================================
 if page == "🏠 總覽首頁":
-    st.title("🏠 台股營收達成率總覽")
+    st.title("台股營收達成率總覽")
     
     if not stock_list:
         st.warning("目前沒有任何股票資料。")
