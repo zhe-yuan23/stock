@@ -41,7 +41,7 @@ def update(stock_id):
         print(f"{stock_id} 本月資料已存在，不需要更新")
     else:
         url = 'https://openapi.twse.com.tw/v1/opendata/t187ap05_L'
-        # 上市公司每月營業收入彙總表
+        # open api 上市公司每月營業收入彙總表
         resp = requests.get(url)
         new_data = resp.json()
         df_new = pd.DataFrame(new_data)
