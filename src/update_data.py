@@ -1,25 +1,18 @@
 import os
 import pandas as pd
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 import numpy as np
 
-# 需存入預設資料 (date,stock_id,revenue_mon(bil),yoy,name)
-# 檔名 stock_id_revenue.csv
-
 def update(stock_id):
-    # file_name = f"data/{stock_id}_revenue.csv"
-    # 1. 取得目前這支程式 (update_data.py) 的絕對路徑
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # 2. 回到上一層 (..)，再進入 data 資料夾
     file_path = os.path.join(current_dir, "..", "data", f"{stock_id}_revenue.csv")
 
     # 讀 CSV
     if os.path.exists(file_path):
         df = pd.read_csv(file_path)
-        df["date"] = df["date"].astype(str).str.replace("/", "-")
-        df["date"] = pd.to_datetime(df["date"])
+        # 統一將日期轉為 datetime 物件，方便 should_update 判斷
+        df["date"] = pd.to_datetime(df["date"], errors='coerce')
     else:
         df = pd.DataFrame()
 
@@ -34,65 +27,59 @@ def update(stock_id):
         current_year = today.year
         current_month = today.month
 
-        # 如果最後一筆資料是「最新月份」就不用更新
+        # 維持你原本的判斷邏輯
         return not (last_year == current_year and last_month == current_month-1)
-    # 判斷
+
     if not should_update(df):
+        # 維持原本訊息
         print(f"{stock_id} 本月資料已存在，不需要更新")
     else:
         url = 'https://openapi.twse.com.tw/v1/opendata/t187ap05_L'
-        # open api 上市公司每月營業收入彙總表
-        resp = requests.get(url)
-        new_data = resp.json()
+        try:
+            resp = requests.get(url)
+            # 確保 API 請求成功
+            resp.raise_for_status() 
+            new_data = resp.json()
+        except Exception as e:
+            print(f"連線出錯: {e}")
+            return
+
         df_new = pd.DataFrame(new_data)
         df_new = df_new.loc[df_new['公司代號'] == stock_id, ['資料年月', '公司代號', '公司名稱', '營業收入-當月營收', '營業收入-去年同月增減(%)']]
-        # ===== 新增這段防呆機制 =====
+        
+        # 維持原本訊息
         if df_new.empty:
             print(f"⚠️ 警告：證交所 API (上市公司) 目前找不到 {stock_id} 的最新營收資料！")
             print("可能是 ETF、上櫃公司，或公司尚未公布。跳過此檔股票。")
             return
+        
         df_new.columns = ['date', 'stock_id', 'name', 'revenue_mon(bil)', 'yoy%']
 
-        #先把欄位轉換成數字型態 (errors='coerce' 會把髒資料轉成空值，比較安全)
-        cols = ['revenue_mon(bil)']
-
-        # 使用 apply 讓 pd.to_numeric 逐欄執行
-        df_new[cols] = df_new[cols].apply(pd.to_numeric, errors='coerce')
-        df_new['revenue_mon(bil)'] = df_new['revenue_mon(bil)']/1e5
+        # 數值轉換
+        df_new['revenue_mon(bil)'] = pd.to_numeric(df_new['revenue_mon(bil)'], errors='coerce') / 1e5
+        # yoy% 也轉成數字，避免後續計算出錯
+        df_new['yoy%'] = pd.to_numeric(df_new['yoy%'], errors='coerce')
 
         # 民國轉西元
         raw_date = df_new['date'].iloc[0] 
-        year = int(raw_date[:-2]) + 1911  # 切出 115 並轉 2026
-        month = raw_date[-2:]             # 切出 01
+        year = int(raw_date[:-2]) + 1911  
+        month = raw_date[-2:]             
         clean_date = f"{year}-{month}-01"
         df_new['date'] = clean_date
-        # 上年度營收
-        # initial_input = input(f"請輸入{stock_id}去年營收 (格式: yyyy-mm-dd, revenue): ")
-        # data_list = [x.strip() for x in initial_input.split(',')]
-        # if len(data_list) == 2:
-        #     initial_row = pd.DataFrame({
-        #         'date': [data_list[0]],
-        #         'stock_id': stock_id,
-        #         'revenue_mon(bil)': [float(data_list[1])],
-        #         'yoy': [np.nan],
-        #         'name':[np.nan]
-        #     })
-            
-            # 轉換日期格式
-        #     initial_row['date'] = pd.to_datetime(initial_row['date']).dt.strftime('%Y-%m-%d')
-        #     print("success")
-        #     print(initial_row)
-        # else:
-        #     print("error")
-        
-        # if not os.path.exists(file_name):
-        #     print(f"{stock_id} 沒有本地資料，開始完整下載")
-        #     df_final = pd.concat([initial_row, df_new])
-        # else:
-        #     df_old = pd.read_csv(file_name)
-        #     df_final = pd.concat([df_old,df_new])
 
-        df_old = pd.read_csv(file_path)
-        df_final = pd.concat([df_old,df_new])   
+        # 合併邏輯修正：讀取舊資料並與新資料合併
+        # 注意：我們使用 drop_duplicates 確保同月份不重複
+        if os.path.exists(file_path):
+            df_old = pd.read_csv(file_path)
+            df_final = pd.concat([df_new, df_old], ignore_index=True).drop_duplicates(subset=['date'])
+        else:
+            df_final = df_new
+
+        # 確保存檔時日期格式整齊，不含分秒
+        df_final['date'] = pd.to_datetime(df_final['date'], format='mixed').dt.strftime('%Y-%m-%d')
+        
+        # 自動建立資料夾並存檔
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
         df_final.to_csv(file_path, index=False)
-    
+        # 這裡可以補一個你想要的成功訊息
+        print(f"{stock_id} 資料存檔成功")
