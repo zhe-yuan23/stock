@@ -4,7 +4,7 @@ from datetime import datetime
 
 # 1. 網頁基本設定 (標題、寬度)
 st.set_page_config(page_title="台股營收追蹤", layout="wide")
-st.title("📈 台股營收追蹤儀表板")
+st.title("📈 台股營收追蹤")
 
 # 2. 側邊欄：選擇股票
 stock_ids = ["2882"]
