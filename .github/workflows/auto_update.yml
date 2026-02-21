@@ -28,7 +28,7 @@ jobs:
 
       - name: 執行資料更新腳本
         run: |
-          python code/update_job.py
+          python src/update_job.py
 
       - name: 檢查並把更新後的 CSV 推回 GitHub
         run: |
