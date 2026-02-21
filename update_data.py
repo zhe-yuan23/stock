@@ -8,7 +8,7 @@ import numpy as np
 # 檔名 stock_id_revenue.csv
 
 def update(stock_id):
-    file_name = f"{stock_id}_revenue.csv"
+    file_name = f"data/{stock_id}_revenue.csv"
 
     # 讀 CSV
     if os.path.exists(file_name):

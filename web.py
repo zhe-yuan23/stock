@@ -13,7 +13,7 @@ selected_stock = st.sidebar.selectbox("請選擇要查看的股票代號", stock
 # 3. 讀取與分析資料
 try:
     # 讀取後台自動更新好的 CSV
-    df = pd.read_csv(f"{selected_stock}_revenue.csv")
+    df = pd.read_csv(f"data/{selected_stock}_revenue.csv")
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date")
 
