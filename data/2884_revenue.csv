@@ -1,4 +1,4 @@
-date,stock_id,revenue_mon(bil),yoy,name
+date,stock_id,revenue_mon(bil),yoy%,name
 2025/1/1,2884,65.8,,玉山金
 2025/2/1,2884,71.91,,
 2025/3/1,2884,76.6,,

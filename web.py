@@ -52,8 +52,8 @@ try:
     df_this_year = df[df["date"].dt.year == today.year] 
     
     if not df_this_year.empty:
-        newest_yoy = df_this_year['yoy'].iat[-1]
-        esti_revenue = last_year_revenue * (1 + newest_yoy) 
+        newest_yoy = df_this_year['yoy%'].iat[-1]
+        esti_revenue = last_year_revenue * (1 + newest_yoy/100) 
         revenue_sum = df_this_year['revenue_mon(bil)'].sum()
         revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2)
 
@@ -76,7 +76,7 @@ try:
 
         with col_table:
             st.markdown("### 📋 每月詳細數據")
-            display_df = df_this_year[['date', 'revenue_mon(bil)', 'yoy']].copy()
+            display_df = df_this_year[['date', 'revenue_mon(bil)', 'yoy%']].copy()
             display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
             st.dataframe(display_df, hide_index=True)
 

@@ -1,4 +1,4 @@
-date,stock_id,revenue_mon(bil),yoy,name
+date,stock_id,revenue_mon(bil),yoy%,name
 2025-12-31,2882,266.9,,國泰金
 2025-12-31,2882,321.4,,
 2025-12-31,2882,422.7,,

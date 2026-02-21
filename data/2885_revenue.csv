@@ -1,4 +1,4 @@
-date,stock_id,revenue_mon(bil),yoy,name
+date,stock_id,revenue_mon(bil),yoy%,name
 2025/1/1,2885,106.8,,元大金
 2025/2/1,2885,103.7,,
 2025/3/1,2885,101.7,,
