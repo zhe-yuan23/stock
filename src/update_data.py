@@ -53,12 +53,12 @@ def update(stock_id):
             print("可能是 ETF、上櫃公司，或公司尚未公布。跳過此檔股票。")
             return
         
-        df_new.columns = ['date', 'stock_id', 'name', 'revenue_mon(bil)', 'yoy%']
+        df_new.columns = ['date', 'stock_id', 'name', 'revenue_mon(bil)', 'yoy(%)']
 
         # 數值轉換
         df_new['revenue_mon(bil)'] = pd.to_numeric(df_new['revenue_mon(bil)'], errors='coerce') / 1e5
-        # yoy% 也轉成數字，避免後續計算出錯
-        df_new['yoy%'] = pd.to_numeric(df_new['yoy%'], errors='coerce')
+        # yoy(%) 也轉成數字，避免後續計算出錯
+        df_new['yoy(%)'] = pd.to_numeric(df_new['yoy(%)'], errors='coerce')
 
         # 民國轉西元
         raw_date = df_new['date'].iloc[0] 

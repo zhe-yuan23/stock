@@ -72,7 +72,7 @@ if page == "🏠 總覽首頁":
                 
                 # 如果該公司今年已經有資料
                 if not df_this_year.empty and last_year_revenue > 0:
-                    newest_yoy = df_this_year['yoy%'].iat[-1]
+                    newest_yoy = df_this_year['yoy(%)'].iat[-1]
                     esti_revenue = last_year_revenue * (1 + newest_yoy/100)
                     revenue_sum = df_this_year['revenue_mon(bil)'].sum()
                     revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2)
@@ -136,7 +136,7 @@ elif page == "📈 個股詳細資料":
         df_this_year = df[df["date"].dt.year == target_year] 
 
         if not df_this_year.empty:
-            newest_yoy = df_this_year['yoy%'].iat[-1]
+            newest_yoy = df_this_year['yoy(%)'].iat[-1]
             esti_revenue = last_year_revenue * (1 + newest_yoy/100) 
             revenue_sum = df_this_year['revenue_mon(bil)'].sum()
             revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2)
@@ -176,14 +176,26 @@ elif page == "📈 個股詳細資料":
                 df_two_years = df[df['date'].dt.year >= target_year - 1].copy()
                 
                 # 整理要顯示的欄位
-                display_df = df_two_years[['date', 'revenue_mon(bil)', 'yoy%']].copy()
+                display_df = df_two_years[['date', 'revenue_mon(bil)', 'yoy(%)']].copy()
                 display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
                 
                 # 💡 實務技巧：建議將表格「反向排序」(由新到舊)，這樣最新的資料就會在最上面，不用每次都往下滑
                 display_df = display_df.sort_values("date", ascending=True)
                 
-                # 顯示表格並隱藏 index
-                st.dataframe(display_df, hide_index=True)
+                # 3. 關鍵步驟：重新命名欄位為中文
+                display_df = display_df.rename(columns={
+                    "date": "日期",
+                    "revenue_mon(bil)": "月營收 (億)",
+                    "yoy(%)": "年增率 (%)"
+                })
+
+                # 4. 顯示表格，並加入 selection_mode="disabled" 來去掉紅框
+                st.dataframe(
+                    display_df, 
+                    hide_index=True, 
+                    use_container_width=True,
+                    selection_mode="disabled"  # 👈 這行就是關閉紅框選取功能的關鍵
+                )
         else:
             st.warning(f"目前還沒有 {target_year} 年的營收資料喔！")
 

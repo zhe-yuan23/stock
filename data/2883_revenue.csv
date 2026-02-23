@@ -1,4 +1,4 @@
-date,stock_id,revenue_mon(bil),yoy%,name
+date,stock_id,revenue_mon(bil),yoy(%),name
 2024/1/1,2883,61.98,,凱基金
 2024/2/1,2883,75.13,,
 2024/3/1,2883,21.26,,

@@ -1,4 +1,4 @@
-date,stock_id,revenue_mon(bil),yoy%,name
+date,stock_id,revenue_mon(bil),yoy(%),name
 2024/1/1,2885,105.7,,元大金
 2024/2/1,2885,87.23,,
 2024/3/1,2885,117.2,,
