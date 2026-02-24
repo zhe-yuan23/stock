@@ -7,7 +7,7 @@ import numpy as np
 stock_ids = ["2882"]
 for stock_id in stock_ids:
     file_name = f"{stock_id}_revenue.csv"
-    update_data.update(stock_id)
+    update_data.update_revenue(stock_id)
 
 
 # Analyze

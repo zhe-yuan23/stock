@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 import numpy as np
 
-def update(stock_id):
+def update_revenue(stock_id):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(current_dir, "..", "data", f"{stock_id}_revenue.csv")
 
