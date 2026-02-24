@@ -71,7 +71,7 @@ def update_revenue(stock_id):
         # 注意：我們使用 drop_duplicates 確保同月份不重複
         if os.path.exists(file_path):
             df_old = pd.read_csv(file_path)
-            df_final = pd.concat([df_new, df_old], ignore_index=True).drop_duplicates(subset=['date'])
+            df_final = pd.concat([df_old, df_new], ignore_index=True).drop_duplicates(subset=['date'])
         else:
             df_final = df_new
 
