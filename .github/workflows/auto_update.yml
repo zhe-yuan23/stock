@@ -29,7 +29,7 @@ jobs:
 
     - name: 4. 執行總排程腳本 (每日盤後 + 月營收)
       run: |
-        python update_job.py
+        python src/update_job.py
 
     - name: 5. 提交並推播更新後的 CSV 檔案到 GitHub
       run: |
