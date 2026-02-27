@@ -4,7 +4,7 @@ on:
   schedule:
     # 台灣時間 (UTC+8) 的 15:00，等於 UTC 的 07:00。
     # 設定為 '0 7 * * 1-5' 代表：每週一到週五的台灣時間下午 15:00 自動執行(分 時 日期 月分 星期)
-    - cron: '30 7 * * 1-5'
+    - cron: '0 7 * * 1-5'
   
   # 允許你在 GitHub 網頁上手動點擊 "Run workflow" 測試
   workflow_dispatch: 
