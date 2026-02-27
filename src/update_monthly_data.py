@@ -82,6 +82,7 @@ def update_revenue_data(stock_ids, base_dir="data"):
         # 統一日期格式
         df_final['date'] = pd.to_datetime(df_final['date'], format='mixed').dt.strftime('%Y-%m-%d')
         
+        df_final = df_final.sort_values(by='date', ascending=True)
         # 存檔
         df_final.to_csv(file_path, index=False)
         print(f"✅ [{sid_str}] 營收資料存檔成功")

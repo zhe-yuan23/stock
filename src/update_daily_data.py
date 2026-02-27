@@ -63,6 +63,7 @@ def update_daily_data(stock_ids, base_dir="data"):
             if os.path.exists(file_path):
                 df_old = pd.read_csv(file_path)
                 df_save = pd.concat([df_old, df_save], ignore_index=True).drop_duplicates(subset=['Date'], keep='last')
+            df_save = df_save.sort_values(by='Date', ascending=True)
             df_save.to_csv(file_path, index=False)
         print("✅ 股價存檔完成！")
     except Exception as e:
@@ -91,6 +92,7 @@ def update_daily_data(stock_ids, base_dir="data"):
             if os.path.exists(file_path):
                 df_old = pd.read_csv(file_path)
                 df_save = pd.concat([df_old, df_save], ignore_index=True).drop_duplicates(subset=['Date'], keep='last')
+            df_save = df_save.sort_values(by='Date', ascending=True)
             df_save.to_csv(file_path, index=False)
         print("✅ 估值資料存檔完成！")
     except Exception as e:
