@@ -85,9 +85,9 @@ def update_daily_data(stock_ids, base_dir="data"):
                 'Date': trading_date, 
                 'stock_id': sid, 
                 'name': row.get('Name', ''), 
-                'Yield(%)': safe_float(row.get('DividendYield')), 
-                'PE_Ratio': safe_float(row.get('PEratio')), 
-                'PB_Ratio': safe_float(row.get('PBratio'))
+                'Yield(%)': safe_float(row.get('DividendYield')), # 殖利率
+                'PE_Ratio': safe_float(row.get('PEratio')), # 本益比
+                'PB_Ratio': safe_float(row.get('PBratio'))  # 淨值比
             }])
             if os.path.exists(file_path):
                 df_old = pd.read_csv(file_path)
