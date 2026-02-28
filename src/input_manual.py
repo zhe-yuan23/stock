@@ -30,7 +30,6 @@ def input_monthly_eps():
     os.makedirs(stock_dir, exist_ok=True)
     file_path = os.path.join(stock_dir, f"{stock_id}_monthly_eps.csv")
 
-    # 輸入數值並防呆
     def get_float_input(prompt):
         while True:
             val = input(prompt).strip()
@@ -39,12 +38,10 @@ def input_monthly_eps():
             except ValueError:
                 print("❌ 只能輸入數字喔！請重試。")
 
-    # 🌟 修改點 1：改成只要求輸入「當月 EPS」
-    # net_income_mon = get_float_input("請輸入 [當月稅後淨利] (億元): ")
-    # net_income_ytd = get_float_input("請輸入 [累計稅後淨利] (億元): ")
+    # 取得當月 EPS
     eps_mon = get_float_input(f"請輸入 {stock_id} 在 {valid_date[:7]} 的 [當月 EPS] (元): ")
 
-    # 準備寫入資料 (只紀錄當月的)
+    # 準備寫入資料
     new_data = pd.DataFrame([{
         "date": valid_date,
         "stock_id": stock_id,
@@ -62,22 +59,14 @@ def input_monthly_eps():
     else:
         df_final = new_data
 
-    # 🌟 修改點 2：自動計算「累計 EPS」的魔法
-    # 先將日期轉為時間格式，並確保由舊到新排序 (這樣加總才會對)
+    # 自動計算「累計 EPS」
     df_final['date'] = pd.to_datetime(df_final['date'])
     df_final = df_final.sort_values(by='date', ascending=True)
-
-    # 取出年份，用來區分不同年度 (避免把去年的 EPS 加到今年)
     df_final['year'] = df_final['date'].dt.year
-
-    # 核心邏輯：依照年份分組，然後把每個月的 eps_mon 累加起來，存進新欄位 eps_ytd
     df_final['eps_ytd'] = df_final.groupby('year')['eps_mon'].cumsum()
-
-    # 算完後把不需要的 year 欄位丟掉，並把日期轉回字串格式
     df_final = df_final.drop(columns=['year'])
     df_final['date'] = df_final['date'].dt.strftime('%Y-%m-%d')
 
-    # 存檔
     df_final.to_csv(file_path, index=False)
     print(f"✅ {stock_id} 的 {valid_date} 盈餘資料已成功存檔！系統已自動幫您結算累計 EPS。\n")
 
@@ -89,7 +78,6 @@ def input_dividend():
     year = input("請輸入財報年度 (例如 2024): ").strip()
     stock_id = input("請輸入股票代號 (例如 2881): ").strip()
 
-    # 動態建立股票專屬資料夾與檔案路徑
     stock_dir = os.path.join(MANUAL_DIR, stock_id)
     os.makedirs(stock_dir, exist_ok=True)
     file_path = os.path.join(stock_dir, f"{stock_id}_dividend_history.csv")
@@ -120,12 +108,10 @@ def input_dividend():
         df_old['year'] = df_old['year'].astype(str)
         
         df_final = pd.concat([df_old, new_data], ignore_index=True)
-        # 單一個股檔案，只需針對 year 去重複
         df_final = df_final.drop_duplicates(subset=['year'], keep='last')
     else:
         df_final = new_data
 
-    # 單一個股檔案，只需針對 year 排序 (確保新年份在最下面)
     df_final = df_final.sort_values(by='year', ascending=True)
     df_final.to_csv(file_path, index=False)
     print(f"✅ {stock_id} 的 {year} 年股利資料已成功存放到 data/manual_data/{stock_id}/ 裡面！\n")
@@ -138,7 +124,6 @@ def input_yearly_revenue():
     year = input("請輸入財報年度 (例如 2024): ").strip()
     stock_id = input("請輸入股票代號 (例如 2881): ").strip()
 
-    # 動態建立股票專屬資料夾與檔案路徑
     stock_dir = os.path.join(MANUAL_DIR, stock_id)
     os.makedirs(stock_dir, exist_ok=True)
     file_path = os.path.join(stock_dir, f"{stock_id}_yearly_revenue.csv")
@@ -151,7 +136,6 @@ def input_yearly_revenue():
             except ValueError:
                 print("❌ 只能輸入數字喔！請重試。")
 
-    # 提示輸入該年度的總營收
     revenue_yearly = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [全年總營收] (單位: 億元): ")
 
     new_data = pd.DataFrame([{
@@ -170,23 +154,65 @@ def input_yearly_revenue():
     else:
         df_final = new_data
 
-    # 確保年份由舊到新排序
     df_final = df_final.sort_values(by='year', ascending=True)
     df_final.to_csv(file_path, index=False)
     print(f"✅ {stock_id} 的 {year} 年總營收資料已成功存放到 data/manual_data/{stock_id}/ 裡面！\n")
+
+
+def input_3yr_avg_yield():
+    """輸入近三年平均殖利率"""
+    print("\n--- 📝 進入 [近三年平均殖利率] 輸入模式 ---")
+    
+    year = input("請輸入更新年度 (例如 2026): ").strip()
+    stock_id = input("請輸入股票代號 (例如 2881): ").strip()
+
+    stock_dir = os.path.join(MANUAL_DIR, stock_id)
+    os.makedirs(stock_dir, exist_ok=True)
+    file_path = os.path.join(stock_dir, f"{stock_id}_3yr_yield.csv")
+
+    def get_float_input(prompt):
+        while True:
+            val = input(prompt).strip()
+            try:
+                return float(val)
+            except ValueError:
+                print("❌ 只能輸入數字喔！請重試。")
+
+    avg_yield = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [近三年平均殖利率] (%): ")
+
+    new_data = pd.DataFrame([{
+        "year": year,
+        "stock_id": stock_id,
+        "avg_yield": avg_yield
+    }])
+
+    if os.path.exists(file_path):
+        df_old = pd.read_csv(file_path)
+        df_old['stock_id'] = df_old['stock_id'].astype(str)
+        df_old['year'] = df_old['year'].astype(str)
+        
+        df_final = pd.concat([df_old, new_data], ignore_index=True)
+        df_final = df_final.drop_duplicates(subset=['year'], keep='last')
+    else:
+        df_final = new_data
+
+    df_final = df_final.sort_values(by='year', ascending=True)
+    df_final.to_csv(file_path, index=False)
+    print(f"✅ {stock_id} 的 {year} 年近三年平均殖利率已成功存放到 data/manual_data/{stock_id}/ 裡面！\n")
 
 
 # ================= 主程式選單 =================
 if __name__ == "__main__":
     while True:
         print("========== 手動資料建檔系統 ==========")
-        print("1. 輸入 [金控每月自結盈餘] (EPS-10號公布查新聞)")
+        print("1. 輸入 [金控每月自結盈餘] (每月查新聞)")
         print("2. 輸入 [歷年股利與盈餘] (查股利政策)")
         print("3. 輸入 [歷年總營收] (損益表-本業獲利)")  
-        print("4. 離開程式")
+        print("4. 輸入 [近三年平均殖利率] (查股利政策-近三年發放取平均)")  # 🌟 新增選項
+        print("5. 離開程式")
         print("======================================")
         
-        choice = input("請選擇要執行的項目 (1/2/3/4): ").strip()
+        choice = input("請選擇要執行的項目 (1/2/3/4/5): ").strip()
         
         if choice == '1':
             input_monthly_eps()
@@ -195,7 +221,9 @@ if __name__ == "__main__":
         elif choice == '3':
             input_yearly_revenue()
         elif choice == '4':
+            input_3yr_avg_yield()
+        elif choice == '5':
             print("👋 離開程式，記得將變更 git push 到 GitHub 喔！")
             break
         else:
-            print("❌ 輸入錯誤，請輸入 1, 2, 3 或 4。")
+            print("❌ 輸入錯誤，請輸入 1, 2, 3, 4 或 5。")
