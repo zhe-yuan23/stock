@@ -25,6 +25,7 @@ def run_valuation(stock_id):
         # 🔍 2. 提取最新數值
         current_price = df_price.iloc[-1]['price']
         stock_name = df_price.iloc[-1]['name']  # 🌟 從股價檔案中提取股票名稱
+        latest_date = df_price.iloc[-1]['Date']
         current_pe = df_valuation.iloc[-1]['PE_Ratio']
         shares_out = df_basic.iloc[-1]['shares_outstanding(億股)']
         
@@ -37,6 +38,8 @@ def run_valuation(stock_id):
 
         # 印出帶有名稱的專屬標題
         print(f"\n========== 📈 啟動 {stock_id} {stock_name} 估價計算機 ==========")
+        print(f"📅 資料日期: {latest_date} (依據最新收盤價)")
+        print("-" * 40)
 
         # 計算近 7 年平均盈餘分配率
         df_div_7yr = df_div.tail(7).copy()
