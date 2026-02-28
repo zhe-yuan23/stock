@@ -93,7 +93,6 @@ if __name__ == "__main__":
     # run_valuation(stock_input)
         while True:
             print("========== 股票查詢系統 ==========")
-            print("請輸入要估價的股票代號 (例如 2881):")
             print("q 離開程式")
             print("======================================")
             
