@@ -77,9 +77,9 @@ def run_valuation(stock_id):
         
         # 結論判斷帶上股票名稱
         if current_price < est_fair_price:
-            print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 低於基本面推估價 ({est_fair_price:.2f})，屬於相對便宜區間！")
+            print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 低於基本面推估價 ({est_fair_price:.2f})，屬於相對便宜區間！\n")
         else:
-            print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 高於基本面推估價 ({est_fair_price:.2f})，已反映基本面或偏貴。")
+            print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 高於基本面推估價 ({est_fair_price:.2f})，已反映基本面或偏貴。\n")
 
     except FileNotFoundError as e:
         print(f"\n========== 📈 啟動 {stock_id} 估價計算機 ==========")
@@ -89,5 +89,18 @@ def run_valuation(stock_id):
         print(f"❌ 計算過程中發生錯誤: {e}")
 
 if __name__ == "__main__":
-    stock_input = input("請輸入要估價的股票代號 (例如 2881): ").strip()
-    run_valuation(stock_input)
+    # stock_input = input("請輸入要估價的股票代號 (例如 2881): ").strip()
+    # run_valuation(stock_input)
+        while True:
+            print("========== 股票查詢系統 ==========")
+            print("請輸入要估價的股票代號 (例如 2881):")
+            print("q 離開程式")
+            print("======================================")
+            
+            stock_input = input("請輸入要估價的股票代號 (例如 2881): ").strip()
+            
+            if stock_input == 'q':
+                print("👋 離開程式")
+                break
+            else:
+                run_valuation(stock_input)
