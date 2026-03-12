@@ -7,7 +7,12 @@ AUTO_DIR = os.path.join(current_dir, "..", "data")
 MANUAL_DIR = os.path.join(current_dir, "..", "data", "manual_data")
 # =================================================
 
-def run_valuation(stock_id):
+def calculate_valuation(stock_id):
+    """
+    核心估價計算函式。
+    傳入股票代號，回傳一個包含所有計算結果的 dict，
+    方便在 CLI 或網站 (Streamlit) 上重複使用。
+    """
     try:
         # 📂 1. 讀取所有需要的資料
         # --- 自動抓取區 ---
@@ -36,11 +41,6 @@ def run_valuation(stock_id):
         eps_ytd = df_monthly_eps.iloc[-1]['eps_ytd']
         avg_yield_3yr = df_3yr_yield.iloc[-1]['avg_yield'] / 100   
 
-        # 印出帶有名稱的專屬標題
-        print(f"\n========== 📈 啟動 {stock_id} {stock_name} 估價計算機 ==========")
-        print(f"📅 資料日期: {latest_date} (依據最新收盤價)")
-        print("-" * 40)
-
         # 計算近 7 年平均盈餘分配率
         df_div_7yr = df_div.tail(7).copy()
         df_div_7yr['payout_ratio'] = (df_div_7yr['cash_div'] + df_div_7yr['stock_div']) / df_div_7yr['eps']
@@ -64,22 +64,88 @@ def run_valuation(stock_id):
         est_current_yield = (est_dividend / current_price) * 100
         price_volatility = (current_price / est_fair_price) * 100
 
-        # 📊 4. 印出美美的結果報告
+        return {
+            "stock_id": stock_id,
+            "stock_name": stock_name,
+            "latest_date": latest_date,
+            "current_price": current_price,
+            "current_pe": current_pe,
+            "shares_outstanding": shares_out,
+            "last_year_revenue": last_year_rev,
+            "ytd_yoy_percent": ytd_yoy_percent * 100,
+            "revenue_ytd": revenue_ytd,
+            "eps_ytd": eps_ytd,
+            "avg_yield_3yr": avg_yield_3yr * 100,
+            "avg_payout_ratio": avg_payout_ratio * 100,
+            "eps_4q": eps_4q,
+            "net_income_4q": net_income_4q,
+            "net_margin": net_margin * 100,
+            "est_revenue": est_revenue,
+            "rev_achieve_rate": rev_achieve_rate,
+            "est_net_income": est_net_income,
+            "est_eps": est_eps,
+            "eps_achieve_rate": eps_achieve_rate,
+            "est_dividend": est_dividend,
+            "est_fair_price": est_fair_price,
+            "est_current_yield": est_current_yield,
+            "price_volatility": price_volatility,
+            "is_undervalued": current_price < est_fair_price,
+        }
+
+    except Exception as e:
+        # 讓呼叫端決定如何顯示錯誤（CLI、網站各自處理）
+        raise e
+
+
+def run_valuation(stock_id):
+    """
+    給終端機使用的包裝函式：呼叫 calculate_valuation 並以文字方式輸出。
+    """
+    try:
+        result = calculate_valuation(stock_id)
+
+        stock_name = result["stock_name"]
+        latest_date = result["latest_date"]
+        current_price = result["current_price"]
+        current_pe = result["current_pe"]
+        ytd_yoy_percent = result["ytd_yoy_percent"]
+        revenue_ytd = result["revenue_ytd"]
+        est_revenue = result["est_revenue"]
+        rev_achieve_rate = result["rev_achieve_rate"]
+        est_net_income = result["est_net_income"]
+        net_margin = result["net_margin"]
+        est_eps = result["est_eps"]
+        eps_ytd = result["eps_ytd"]
+        eps_achieve_rate = result["eps_achieve_rate"]
+        est_dividend = result["est_dividend"]
+        avg_payout_ratio = result["avg_payout_ratio"]
+        est_fair_price = result["est_fair_price"]
+        avg_yield_3yr = result["avg_yield_3yr"]
+        est_current_yield = result["est_current_yield"]
+        price_volatility = result["price_volatility"]
+        is_undervalued = result["is_undervalued"]
+
+        # 印出帶有名稱的專屬標題
+        print(f"\n========== 📈 啟動 {stock_id} {stock_name} 估價計算機 ==========")
+        print(f"📅 資料日期: {latest_date} (依據最新收盤價)")
+        print("-" * 40)
+
+        # 📊 結果報告
         print(f"🔹 目前股價: {current_price} 元 | 最新本益比: {current_pe}")
         print("-" * 40)
-        print(f"✅ 1. 推估今年營收: {est_revenue:.2f} 億元 (年增率設定: {ytd_yoy_percent*100:.2f}%)")
+        # print(f"✅ 1. 推估今年營收: {est_revenue:.2f} 億元 (年增率設定: {ytd_yoy_percent:.2f}%)")
         print(f"✅ 2. 營收達成率:   {rev_achieve_rate:.2f} % (目前累計: {revenue_ytd:.2f} 億)")
-        print(f"✅ 3. 推估稅後淨利: {est_net_income:.2f} 億元 (反推淨利率: {net_margin*100:.2f}%)")
+        print(f"✅ 3. 推估稅後淨利: {est_net_income:.2f} 億元 (反推淨利率: {net_margin:.2f}%)")
         print(f"✅ 4. 推估全年 EPS: {est_eps:.2f} 元")
         print(f"✅ 5. EPS 達成率:   {eps_achieve_rate:.2f} % (目前累計 EPS: {eps_ytd})")
-        print(f"✅ 6. 推估總股息:   {est_dividend:.2f} 元 (7年平均分配率: {avg_payout_ratio*100:.2f}%)")
-        print(f"✅ 7. 推估基本面價: {est_fair_price:.2f} 元 (採用3年平均殖利率: {avg_yield_3yr*100:.2f}%)")
+        print(f"✅ 6. 推估總股息:   {est_dividend:.2f} 元 (7年平均分配率: {avg_payout_ratio:.2f}%)")
+        print(f"✅ 7. 推估基本面價: {est_fair_price:.2f} 元 (採用3年平均殖利率: {avg_yield_3yr:.2f}%)")
         print(f"✅ 8. 現價殖利率:   {est_current_yield:.2f} %")
         print(f"✅ 9. 股價波動位階: {price_volatility:.2f} % (現價佔基本面價的比例)")
         print("====================================================\n")
-        
+
         # 結論判斷帶上股票名稱
-        if current_price < est_fair_price:
+        if is_undervalued:
             print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 低於基本面推估價 ({est_fair_price:.2f})，屬於相對便宜區間！\n")
         else:
             print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 高於基本面推估價 ({est_fair_price:.2f})，已反映基本面或偏貴。\n")
