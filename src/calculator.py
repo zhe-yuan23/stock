@@ -133,7 +133,7 @@ def run_valuation(stock_id):
         # 📊 結果報告
         print(f"🔹 目前股價: {current_price} 元 | 最新本益比: {current_pe}")
         print("-" * 40)
-        # print(f"✅ 1. 推估今年營收: {est_revenue:.2f} 億元 (年增率設定: {ytd_yoy_percent:.2f}%)")
+        print(f"✅ 1. 推估今年營收: {est_revenue:.2f} 億元 (年增率設定: {ytd_yoy_percent:.2f}%)")
         print(f"✅ 2. 營收達成率:   {rev_achieve_rate:.2f} % (目前累計: {revenue_ytd:.2f} 億)")
         print(f"✅ 3. 推估稅後淨利: {est_net_income:.2f} 億元 (反推淨利率: {net_margin:.2f}%)")
         print(f"✅ 4. 推估全年 EPS: {est_eps:.2f} 元")
