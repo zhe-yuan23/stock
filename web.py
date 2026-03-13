@@ -9,16 +9,18 @@ from src.calculator import calculate_valuation
 # 定義要注入的 CSS
 hide_style = """
     <style>
-    /* 隱藏右下角的 Made with Streamlit 浮水印 */
+    /* 隱藏官方雲端的工具列 (包括紅色的開發者按鈕) */
+    .stAppToolbar {display: none;}
+    
+    /* 隱藏右下角的 Made with Streamlit (如果是這個的話) */
     footer {visibility: hidden;}
     
-    /* 隱藏頂部右側的選單按鈕 (三條線) */
-    #MainMenu {visibility: hidden;}
-    
-    /* 隱藏頂部橫條 (Header) */
-    header {visibility: hidden;}
+    /* 隱藏右下角的部署狀態圖示 */
+    #stDecoration {display: none;}
     </style>
     """
+
+st.markdown(hide_style, unsafe_allow_html=True)
 
 # 注入 CSS
 st.markdown(hide_style, unsafe_allow_html=True)
