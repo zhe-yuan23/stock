@@ -6,26 +6,28 @@ import altair as alt
 
 from src.calculator import calculate_valuation
 
-# 定義要注入的 CSS
+
+st.set_page_config(page_title="台股營收追蹤", layout="wide")
+
 hide_style = """
     <style>
-    /* 隱藏官方雲端的工具列 (包括紅色的開發者按鈕) */
-    .stAppToolbar {display: none;}
-    
-    /* 隱藏右下角的 Made with Streamlit (如果是這個的話) */
+    /* 隱藏右下角 Made with Streamlit 浮水印 */
     footer {visibility: hidden;}
     
-    /* 隱藏右下角的部署狀態圖示 */
-    #stDecoration {display: none;}
+    /* 隱藏頂部選單與橫條 */
+    header {visibility: hidden;}
+    
+    /* 隱藏 Streamlit Cloud 專屬的開發者工具列 (包含紅色皇冠/按鈕) */
+    .stAppToolbar {display: none !important;}
+    #stDecoration {display: none !important;}
+    
+    /* 針對行動裝置可能出現的特定元件 */
+    [data-testid="stStatusWidget"] {display: none !important;}
     </style>
     """
 
+# 3. 注入 CSS
 st.markdown(hide_style, unsafe_allow_html=True)
-
-# 注入 CSS
-st.markdown(hide_style, unsafe_allow_html=True)
-
-st.set_page_config(page_title="台股營收追蹤", layout="wide")
 
 if "view" not in st.session_state:
     st.session_state.view = "🏠 總覽首頁"
