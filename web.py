@@ -6,7 +6,29 @@ import altair as alt
 
 from src.calculator import calculate_valuation
 
+# 定義要注入的 CSS
+hide_style = """
+    <style>
+    /* 隱藏右下角的 Made with Streamlit 浮水印 */
+    footer {visibility: hidden;}
+    
+    /* 隱藏頂部右側的選單按鈕 (三條線) */
+    #MainMenu {visibility: hidden;}
+    
+    /* 隱藏頂部橫條 (Header) */
+    header {visibility: hidden;}
+    </style>
+    """
+
+# 注入 CSS
+st.markdown(hide_style, unsafe_allow_html=True)
+
 st.set_page_config(page_title="台股營收追蹤", layout="wide")
+
+if "view" not in st.session_state:
+    st.session_state.view = "🏠 總覽首頁"
+if "selected_stock" not in st.session_state:
+    st.session_state.selected_stock = None
 
 def _get_baseline_revenue_for_estimate(stock_id: str, target_year: int, df_revenue: pd.DataFrame):
     """
@@ -52,8 +74,11 @@ def _get_baseline_revenue_for_estimate(stock_id: str, target_year: int, df_reven
 # 區塊 A：側邊欄導覽列與自動掃描資料夾
 # ==========================================
 st.sidebar.title("導覽選單")
-page = st.sidebar.radio("請選擇頁面", ["🏠 總覽首頁", "📈 個股詳細資料", "💰 基本面估價觀測"])
+sidebar_page = st.sidebar.radio("請選擇頁面", ["🏠 總覽首頁", "💰 基本面估價觀測"])
 st.sidebar.markdown("---")
+
+if st.session_state.view != "📈 個股詳細資料":
+    st.session_state.view = sidebar_page
 
 # 🌟 修改掃描邏輯：改為抓取 data 目錄下的所有「子資料夾名稱」
 # 並排除 manual_data 這種純手動設定用的資料夾
@@ -82,9 +107,10 @@ for sid in stock_list:
 # ==========================================
 # 區塊 B：🏠 總覽首頁
 # ==========================================
-if page == "🏠 總覽首頁":
+if st.session_state.view == "🏠 總覽首頁":
     st.title("台股營收達成率總覽")
-    
+    st.caption("點選下方公司卡片即可查看個股詳細營收追蹤")
+
     if not stock_list:
         st.warning("目前沒有任何股票資料。")
     else:
@@ -124,15 +150,15 @@ if page == "🏠 總覽首頁":
                     revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2)
                     
                     summary_data.append({
+                        "stock_id": sid,
                         "公司名稱": f"{sid} {stock_name}",
-                        # "基準年度": baseline_year,
                         "排序數值": revenue_achie_rate, 
                         "目前達成率 (%)": f"{revenue_achie_rate} %"
                     })
                 else:
                     summary_data.append({
+                        "stock_id": sid,
                         "公司名稱": f"{sid} {stock_name}",
-                        # "基準年度": baseline_year if baseline_year is not None else "",
                         "排序數值": -1.0, 
                         "目前達成率 (%)": "尚未公布"
                     })
@@ -142,105 +168,156 @@ if page == "🏠 總覽首頁":
         if summary_data:
             summary_df = pd.DataFrame(summary_data)
             summary_df = summary_df.sort_values("排序數值", ascending=False)
-            summary_df = summary_df.drop(columns=["排序數值"])
-            
+
             st.write(f"### {global_target_year} 年度營收目標達成進度")
-            st.dataframe(summary_df, hide_index=True, use_container_width=True)
+
+            top_notice = (
+                "📌 依目前累計營收與最新年增率推估全年營收，"
+                "以達成率高低排序，點選任一公司可進入詳細頁面。"
+            )
+            st.info(top_notice)
+
+            card_cols = st.columns(3)
+            for idx, row in summary_df.iterrows():
+                sid = row["stock_id"]
+                with card_cols[idx % 3]:
+                    achieve = row["目前達成率 (%)"]
+                    rate_val = row["排序數值"]
+                    if rate_val >= 100:
+                        color = "#16a34a"
+                    elif rate_val >= 70:
+                        color = "#f97316"
+                    elif rate_val < 0:
+                        color = "#6b7280"
+                    else:
+                        color = "#0ea5e9"
+
+                    st.markdown(
+                        f"""
+                        <div style="
+                            border-radius: 12px;
+                            padding: 14px 16px;
+                            margin-bottom: 10px;
+                            background: #0f172a;
+                            border: 1px solid #1f2937;
+                            box-shadow: 0 8px 18px rgba(15,23,42,0.35);
+                        ">
+                            <div style="font-size: 0.85rem; color: #9ca3af;">{sid}</div>
+                            <div style="font-size: 1.05rem; font-weight: 600; margin: 2px 0 6px 0;">
+                                {row["公司名稱"].split(" ", 1)[-1]}
+                            </div>
+                            <div style="font-size: 0.85rem; color: #9ca3af;">目前達成率</div>
+                            <div style="font-size: 1.2rem; font-weight: 700; color: {color};">
+                                {achieve}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    if st.button("查看詳細", key=f"detail_{sid}"):
+                        st.session_state.selected_stock = sid
+                        st.session_state.view = "📈 個股詳細資料"
+                        st.rerun()
         else:
             st.info("尚無足夠資料計算達成率。")
 
 # ==========================================
 # 區塊 C：📈 個股詳細資料
 # ==========================================
-elif page == "📈 個股詳細資料":
+elif st.session_state.view == "📈 個股詳細資料":
     st.title("個股營收追蹤")
-    
-    selected_stock = st.sidebar.selectbox(
-        "請選擇要查看的股票",
-        options=stock_list,
-        format_func=lambda x: f"{x} {stock_display.get(x, '')}"
-    )
 
-    try:
-        # 🌟 修改讀取路徑
-        df = pd.read_csv(f"data/{selected_stock}/{selected_stock}_revenue.csv")
-        stock_name = df['name'].iloc[0] if 'name' in df.columns else ""
+    if not st.session_state.selected_stock:
+        st.warning("請先在首頁點選一檔股票以查看詳細資料。")
+    else:
+        selected_stock = st.session_state.selected_stock
 
-        df["date"] = df["date"].astype(str).str.replace("/", "-")
-        df["date"] = pd.to_datetime(df["date"])
-        df = df.sort_values("date")
+        if st.button("⬅ 返回總覽首頁"):
+            st.session_state.view = "🏠 總覽首頁"
+            st.session_state.selected_stock = None
+            st.rerun()
 
-        target_year = df['date'].dt.year.max()
+        try:
+            # 🌟 修改讀取路徑
+            df = pd.read_csv(f"data/{selected_stock}/{selected_stock}_revenue.csv")
+            stock_name = df['name'].iloc[0] if 'name' in df.columns else ""
 
-        df_this_year = df[df["date"].dt.year == target_year] 
+            df["date"] = df["date"].astype(str).str.replace("/", "-")
+            df["date"] = pd.to_datetime(df["date"])
+            df = df.sort_values("date")
 
-        if not df_this_year.empty:
-            baseline_year, last_year_revenue = _get_baseline_revenue_for_estimate(
-                stock_id=selected_stock, target_year=target_year, df_revenue=df
-            )
-            newest_ytd_yoy = df_this_year['ytd_yoy(%)'].iat[-1]
-            esti_revenue = last_year_revenue * (1 + newest_ytd_yoy/100) if last_year_revenue else 0
-            revenue_sum = df_this_year['revenue_ytd(bil)'].iat[-1]
-            revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2) if esti_revenue else None
+            target_year = df['date'].dt.year.max()
 
-            st.subheader(f"📊 {selected_stock} {stock_name} 營收進度")
-            col1, col2, col3 = st.columns(3)
-            if revenue_achie_rate is None:
-                col1.metric(label=f"推估 {target_year} 年總營收", value="尚未公布")
+            df_this_year = df[df["date"].dt.year == target_year] 
+
+            if not df_this_year.empty:
+                baseline_year, last_year_revenue = _get_baseline_revenue_for_estimate(
+                    stock_id=selected_stock, target_year=target_year, df_revenue=df
+                )
+                newest_ytd_yoy = df_this_year['ytd_yoy(%)'].iat[-1]
+                esti_revenue = last_year_revenue * (1 + newest_ytd_yoy/100) if last_year_revenue else 0
+                revenue_sum = df_this_year['revenue_ytd(bil)'].iat[-1]
+                revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2) if esti_revenue else None
+
+                st.subheader(f"📊 {selected_stock} {stock_name} 營收進度")
+                col1, col2, col3 = st.columns(3)
+                if revenue_achie_rate is None:
+                    col1.metric(label=f"推估 {target_year} 年總營收", value="尚未公布")
+                else:
+                    label_suffix = f"（基準 {baseline_year} 年）" if baseline_year else ""
+                    col1.metric(label=f"推估 {target_year} 年總營收{label_suffix}", value=f"{esti_revenue:,.2f} 億")
+                col2.metric(label=f"{target_year} 年目前總營收", value=f"{revenue_sum:,.2f} 億") 
+                col3.metric(label="目前達成率", value="尚未公布" if revenue_achie_rate is None else f"{revenue_achie_rate} %")
+
+                st.markdown("---")
+
+                col_chart, col_table = st.columns([2, 1]) 
+                
+                with col_chart:
+                    st.markdown("### 📈 月營收趨勢圖")
+                    chart = alt.Chart(df_this_year).mark_line(point=True).encode(
+                        x=alt.X('date:T', title='日期'),
+                        y=alt.Y('revenue_mon(bil):Q', title='', scale=alt.Scale(zero=True))
+                    ).properties(
+                        height=350 
+                    )
+                    st.altair_chart(chart, use_container_width=True)                
+
+                with col_table:
+                    st.markdown(f"### 📋 近二年詳細數據")
+                    
+                    df_two_years = df[df['date'].dt.year >= target_year - 1].copy()
+                    
+                    display_df = df_two_years[['date', 'revenue_mon(bil)', 'yoy(%)', 'revenue_ytd(bil)', 'ytd_yoy(%)']].copy()
+                    display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
+                    
+                    display_df = display_df.sort_values("date", ascending=True)
+                    
+                    display_df = display_df.rename(columns={
+                        "date": "日期",
+                        "revenue_mon(bil)": "月營收 (億)",
+                        "yoy(%)": "單月年增率 (%)",
+                        "revenue_ytd(bil)": "累計營收 (億)",
+                        "ytd_yoy(%)": "累計年增率 (%)"
+                    })
+
+                    st.dataframe(
+                        display_df, 
+                        hide_index=True, 
+                        use_container_width=True,
+                        selection_mode="disabled"  
+                    )
             else:
-                label_suffix = f"（基準 {baseline_year} 年）" if baseline_year else ""
-                col1.metric(label=f"推估 {target_year} 年總營收{label_suffix}", value=f"{esti_revenue:,.2f} 億")
-            col2.metric(label=f"{target_year} 年目前總營收", value=f"{revenue_sum:,.2f} 億") 
-            col3.metric(label="目前達成率", value="尚未公布" if revenue_achie_rate is None else f"{revenue_achie_rate} %")
+                st.warning(f"目前還沒有 {target_year} 年的營收資料喔！")
 
-            st.markdown("---")
-
-            col_chart, col_table = st.columns([2, 1]) 
-            
-            with col_chart:
-                st.markdown("### 📈 月營收趨勢圖")
-                chart = alt.Chart(df_this_year).mark_line(point=True).encode(
-                    x=alt.X('date:T', title='日期'),
-                    y=alt.Y('revenue_mon(bil):Q', title='', scale=alt.Scale(zero=True))
-                ).properties(
-                    height=350 
-                )
-                st.altair_chart(chart, use_container_width=True)                
-
-            with col_table:
-                st.markdown(f"### 📋 近二年詳細數據")
-                
-                df_two_years = df[df['date'].dt.year >= target_year - 1].copy()
-                
-                display_df = df_two_years[['date', 'revenue_mon(bil)', 'yoy(%)', 'revenue_ytd(bil)', 'ytd_yoy(%)']].copy()
-                display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
-                
-                display_df = display_df.sort_values("date", ascending=False)
-                
-                display_df = display_df.rename(columns={
-                    "date": "日期",
-                    "revenue_mon(bil)": "月營收 (億)",
-                    "yoy(%)": "單月年增率 (%)",
-                    "revenue_ytd(bil)": "累計營收 (億)",
-                    "ytd_yoy(%)": "累計年增率 (%)"
-                })
-
-                st.dataframe(
-                    display_df, 
-                    hide_index=True, 
-                    use_container_width=True,
-                    selection_mode="disabled"  
-                )
-        else:
-            st.warning(f"目前還沒有 {target_year} 年的營收資料喔！")
-
-    except FileNotFoundError:
-        st.error(f"找不到 {selected_stock}_revenue.csv！")
+        except FileNotFoundError:
+            st.error(f"找不到 {selected_stock}_revenue.csv！")
 
 # ==========================================
 # 區塊 D：💰 基本面估價觀測（使用 calculator.py）
 # ==========================================
-elif page == "💰 基本面估價觀測":
+elif st.session_state.view == "💰 基本面估價觀測":
     st.title("基本面估價觀測")
 
     if not stock_list:
