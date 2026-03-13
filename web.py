@@ -77,7 +77,10 @@ st.sidebar.title("導覽選單")
 sidebar_page = st.sidebar.radio("請選擇頁面", ["🏠 總覽首頁", "💰 基本面估價觀測"])
 st.sidebar.markdown("---")
 
-if st.session_state.view != "📈 個股詳細資料":
+# 個股詳細頁時仍允許直接切換到「基本面估價觀測」，減少多一步返回首頁的動作
+if sidebar_page == "💰 基本面估價觀測":
+    st.session_state.view = sidebar_page
+elif st.session_state.view != "📈 個股詳細資料":
     st.session_state.view = sidebar_page
 
 # 🌟 修改掃描邏輯：改為抓取 data 目錄下的所有「子資料夾名稱」
@@ -123,8 +126,8 @@ if st.session_state.view == "🏠 總覽首頁":
                 temp_df = pd.read_csv(f"data/{sid}/{sid}_revenue.csv")
                 temp_df["date"] = temp_df["date"].astype(str).str.replace("/", "-")
                 temp_df["date"] = pd.to_datetime(temp_df["date"])
-                all_years.append(temp_df['date'].dt.year.max())
-            except:
+                all_years.append(temp_df["date"].dt.year.max())
+            except Exception:
                 pass
         
         global_target_year = max(all_years) if all_years else datetime.now().year
@@ -138,42 +141,84 @@ if st.session_state.view == "🏠 總覽首頁":
 
                 df_this_year = df[df["date"].dt.year == global_target_year]
                 stock_name = stock_display.get(sid, "")
+
+                # 取得股價波動位階（現價佔基本面價比例）
+                try:
+                    valuation_result = calculate_valuation(sid)
+                    price_volatility = valuation_result.get("price_volatility", None)
+                except Exception:
+                    price_volatility = None
                 
                 baseline_year, last_year_revenue = _get_baseline_revenue_for_estimate(
                     stock_id=sid, target_year=global_target_year, df_revenue=df
                 )
 
                 if not df_this_year.empty and last_year_revenue and last_year_revenue > 0:
-                    newest_ytd_yoy = df_this_year['ytd_yoy(%)'].iat[-1]
-                    esti_revenue = last_year_revenue * (1 + newest_ytd_yoy/100)
-                    revenue_sum = df_this_year['revenue_ytd(bil)'].iat[-1]
+                    last_date = df_this_year["date"].max()
+                    last_month_num = int(last_date.month)
+                    last_month_display = last_date.strftime("%Y-%m")
+
+                    newest_ytd_yoy = df_this_year["ytd_yoy(%)"].iat[-1]
+                    esti_revenue = last_year_revenue * (1 + newest_ytd_yoy / 100)
+                    revenue_sum = df_this_year["revenue_ytd(bil)"].iat[-1]
                     revenue_achie_rate = (revenue_sum / esti_revenue * 100).round(2)
                     
-                    summary_data.append({
-                        "stock_id": sid,
-                        "公司名稱": f"{sid} {stock_name}",
-                        "排序數值": revenue_achie_rate, 
-                        "目前達成率 (%)": f"{revenue_achie_rate} %"
-                    })
+                    summary_data.append(
+                        {
+                            "stock_id": sid,
+                            "公司名稱": f"{sid} {stock_name}",
+                            "排序數值": revenue_achie_rate,
+                            "目前達成率 (%)": f"{revenue_achie_rate} %",
+                            "更新月份": last_month_display,
+                            "最新月份序號": last_month_num,
+                            "股價波動位階": price_volatility,
+                        }
+                    )
                 else:
-                    summary_data.append({
-                        "stock_id": sid,
-                        "公司名稱": f"{sid} {stock_name}",
-                        "排序數值": -1.0, 
-                        "目前達成率 (%)": "尚未公布"
-                    })
-            except Exception as e:
+                    summary_data.append(
+                        {
+                            "stock_id": sid,
+                            "公司名稱": f"{sid} {stock_name}",
+                            "排序數值": -1.0,
+                            "目前達成率 (%)": "尚未公布",
+                            "更新月份": "尚未公布",
+                            "最新月份序號": None,
+                            "股價波動位階": price_volatility,
+                        }
+                    )
+            except Exception:
                 continue
                 
         if summary_data:
+            valid_months = [
+                d["最新月份序號"] for d in summary_data if d["最新月份序號"] is not None
+            ]
+            global_latest_month = max(valid_months) if valid_months else None
+            for d in summary_data:
+                d["是否最新月份"] = (
+                    global_latest_month is not None
+                    and d["最新月份序號"] == global_latest_month
+                )
+
+            # 直接在 list 層級依「是否有達成率資料」與「排序數值」做排序，
+            # 確保卡片從左上到右下是：有資料在前，且達成率由高到低
+            def _sort_key(item):
+                value = item.get("排序數值", -1.0)
+                try:
+                    v = float(value)
+                except Exception:
+                    v = -1.0
+                has_data = v >= 0
+                return (has_data, v)
+
+            summary_data.sort(key=_sort_key, reverse=True)
+
             summary_df = pd.DataFrame(summary_data)
-            summary_df = summary_df.sort_values("排序數值", ascending=False)
 
             st.write(f"### {global_target_year} 年度營收目標達成進度")
 
             top_notice = (
-                "📌 依目前累計營收與最新年增率推估全年營收，"
-                "以達成率高低排序，點選任一公司可進入詳細頁面。"
+                "📌 點選任一公司可進入詳細頁面"
             )
             st.info(top_notice)
 
@@ -183,6 +228,18 @@ if st.session_state.view == "🏠 總覽首頁":
                 with card_cols[idx % 3]:
                     achieve = row["目前達成率 (%)"]
                     rate_val = row["排序數值"]
+                    price_volatility = row.get("股價波動位階", None)
+                    last_month_display = row.get("更新月份", "")
+                    is_latest = bool(row.get("是否最新月份", False))
+
+                    if not last_month_display or (
+                        isinstance(last_month_display, float)
+                        and pd.isna(last_month_display)
+                    ):
+                        last_month_text = "營收更新月份：尚未公布"
+                    else:
+                        last_month_text = f"營收更新至：{last_month_display}"
+
                     if rate_val >= 100:
                         color = "#16a34a"
                     elif rate_val >= 70:
@@ -192,13 +249,32 @@ if st.session_state.view == "🏠 總覽首頁":
                     else:
                         color = "#0ea5e9"
 
+                    # 依股價波動位階決定卡片底色：
+                    # 大於等於 100% → 紅色系；低於 100% → 綠色系
+                    card_bg = "#0f172a"
+                    try:
+                        if price_volatility is not None and not pd.isna(price_volatility):
+                            if float(price_volatility) >= 100:
+                                card_bg = "#451a1a"  # 深紅色系
+                            else:
+                                card_bg = "#064e3b"  # 深綠色系
+                    except Exception:
+                        pass
+
+                    if is_latest:
+                        status_text = "已公布最新月份"
+                        status_color = "#22c55e"
+                    else:
+                        status_text = "尚未公布最新月份"
+                        status_color = "#f97316"
+
                     st.markdown(
                         f"""
                         <div style="
                             border-radius: 12px;
                             padding: 14px 16px;
                             margin-bottom: 10px;
-                            background: #0f172a;
+                            background: {card_bg};
                             border: 1px solid #1f2937;
                             box-shadow: 0 8px 18px rgba(15,23,42,0.35);
                         ">
@@ -209,6 +285,12 @@ if st.session_state.view == "🏠 總覽首頁":
                             <div style="font-size: 0.85rem; color: #9ca3af;">目前達成率</div>
                             <div style="font-size: 1.2rem; font-weight: 700; color: {color};">
                                 {achieve}
+                            </div>
+                            <div style="font-size: 0.8rem; color: #9ca3af; margin-top: 4px;">
+                                {last_month_text}
+                            </div>
+                            <div style="font-size: 0.8rem; color: {status_color};">
+                                {status_text}
                             </div>
                         </div>
                         """,
@@ -386,7 +468,7 @@ elif st.session_state.view == "💰 基本面估價觀測":
                     f"低於基本面推估價 ({est_fair_price:.2f} 元)，屬於相對便宜區間。"
                 )
             else:
-                st.info(
+                st.error(
                     f"【結論】{stock_name} 目前股價 ({current_price:.2f} 元) "
                     f"高於或接近基本面推估價 ({est_fair_price:.2f} 元)，已反映基本面或偏貴。"
                 )
