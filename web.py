@@ -9,26 +9,6 @@ from src.calculator import calculate_valuation
 
 st.set_page_config(page_title="台股營收追蹤", layout="wide")
 
-hide_style = """
-    <style>
-    /* 隱藏右下角 Made with Streamlit 浮水印 */
-    footer {visibility: hidden;}
-    
-    /* 隱藏頂部選單與橫條 */
-    header {visibility: hidden;}
-    
-    /* 隱藏 Streamlit Cloud 專屬的開發者工具列 (包含紅色皇冠/按鈕) */
-    .stAppToolbar {display: none !important;}
-    #stDecoration {display: none !important;}
-    
-    /* 針對行動裝置可能出現的特定元件 */
-    [data-testid="stStatusWidget"] {display: none !important;}
-    </style>
-    """
-
-# 3. 注入 CSS
-st.markdown(hide_style, unsafe_allow_html=True)
-
 if "view" not in st.session_state:
     st.session_state.view = "🏠 總覽首頁"
 if "selected_stock" not in st.session_state:
