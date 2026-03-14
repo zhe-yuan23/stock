@@ -126,10 +126,12 @@ if st.session_state.view == "🏠 總覽首頁":
                 df_this_year = df[df["date"].dt.year == global_target_year]
                 stock_name = stock_display.get(sid, "")
 
-                # 取得股價波動位階（現價佔基本面價比例）
+                # 取得股價波動位階與最新股價（現價佔基本面價比例）
+                current_price = None
                 try:
                     valuation_result = calculate_valuation(sid)
                     price_volatility = valuation_result.get("price_volatility", None)
+                    current_price = valuation_result.get("current_price", None)
                 except Exception:
                     price_volatility = None
                 
@@ -156,6 +158,7 @@ if st.session_state.view == "🏠 總覽首頁":
                             "更新月份": last_month_display,
                             "最新月份序號": last_month_num,
                             "股價波動位階": price_volatility,
+                            "目前股價": current_price,
                         }
                     )
                 else:
@@ -168,6 +171,7 @@ if st.session_state.view == "🏠 總覽首頁":
                             "更新月份": "尚未公布",
                             "最新月份序號": None,
                             "股價波動位階": price_volatility,
+                            "目前股價": current_price,
                         }
                     )
             except Exception:
@@ -217,8 +221,10 @@ if st.session_state.view == "🏠 總覽首頁":
                         achieve = row["目前達成率 (%)"]
                         rate_val = row["排序數值"]
                         price_volatility = row.get("股價波動位階", None)
+                        current_price = row.get("目前股價", None)
                         last_month_display = row.get("更新月份", "")
                         is_latest = bool(row.get("是否最新月份", False))
+                        price_display = f"{float(current_price):.2f} 元" if current_price is not None and not pd.isna(current_price) else "—"
 
                         if not last_month_display or (
                             isinstance(last_month_display, float)
@@ -265,20 +271,32 @@ if st.session_state.view == "🏠 總覽首頁":
                             background: {card_bg};
                             border: 1px solid #1f2937;
                             box-shadow: 0 8px 18px rgba(15,23,42,0.35);
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: stretch;
+                            gap: 12px;
                         ">
-                            <div style="font-size: 0.85rem; color: #9ca3af;">{sid}</div>
-                            <div style="font-size: 1.05rem; font-weight: 600; margin: 2px 0 6px 0;">
-                                {row["公司名稱"].split(" ", 1)[-1]}
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 0.85rem; color: #9ca3af;">{sid}</div>
+                                <div style="font-size: 1.05rem; font-weight: 600; margin: 2px 0 6px 0;">
+                                    {row["公司名稱"].split(" ", 1)[-1]}
+                                </div>
+                                <div style="font-size: 0.85rem; color: #9ca3af;">目前達成率</div>
+                                <div style="font-size: 1.2rem; font-weight: 700; color: {color};">
+                                    {achieve}
+                                </div>
+                                <div style="font-size: 0.8rem; color: #9ca3af; margin-top: 4px;">
+                                    {last_month_text}
+                                </div>
+                                <div style="font-size: 0.8rem; color: {status_color};">
+                                    {status_text}
+                                </div>
                             </div>
-                            <div style="font-size: 0.85rem; color: #9ca3af;">目前達成率</div>
-                            <div style="font-size: 1.2rem; font-weight: 700; color: {color};">
-                                {achieve}
-                            </div>
-                            <div style="font-size: 0.8rem; color: #9ca3af; margin-top: 4px;">
-                                {last_month_text}
-                            </div>
-                            <div style="font-size: 0.8rem; color: {status_color};">
-                                {status_text}
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; flex-shrink: 0;">
+                                <div style="font-size: 0.8rem; color: #9ca3af;">最新股價</div>
+                                <div style="font-size: 2rem; font-weight: 700; color: #67e8f9;">
+                                    {price_display}
+                                </div>
                             </div>
                         </div>
                         """,
