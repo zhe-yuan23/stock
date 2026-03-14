@@ -206,54 +206,58 @@ if st.session_state.view == "🏠 總覽首頁":
             )
             st.info(top_notice)
 
-            card_cols = st.columns(3)
-            for idx, row in summary_df.iterrows():
-                sid = row["stock_id"]
-                with card_cols[idx % 3]:
-                    achieve = row["目前達成率 (%)"]
-                    rate_val = row["排序數值"]
-                    price_volatility = row.get("股價波動位階", None)
-                    last_month_display = row.get("更新月份", "")
-                    is_latest = bool(row.get("是否最新月份", False))
+            # 每列一組 columns(3)，確保手機直向堆疊時順序為 0,1,2,3,4,5... 不會跑掉
+            rows = list(summary_df.iterrows())
+            for start in range(0, len(rows), 3):
+                chunk = rows[start : start + 3]
+                card_cols = st.columns(3)
+                for i, (idx, row) in enumerate(chunk):
+                    sid = row["stock_id"]
+                    with card_cols[i]:
+                        achieve = row["目前達成率 (%)"]
+                        rate_val = row["排序數值"]
+                        price_volatility = row.get("股價波動位階", None)
+                        last_month_display = row.get("更新月份", "")
+                        is_latest = bool(row.get("是否最新月份", False))
 
-                    if not last_month_display or (
-                        isinstance(last_month_display, float)
-                        and pd.isna(last_month_display)
-                    ):
-                        last_month_text = "營收更新月份：尚未公布"
-                    else:
-                        last_month_text = f"營收更新至：{last_month_display}"
+                        if not last_month_display or (
+                            isinstance(last_month_display, float)
+                            and pd.isna(last_month_display)
+                        ):
+                            last_month_text = "營收更新月份：尚未公布"
+                        else:
+                            last_month_text = f"營收更新至：{last_month_display}"
 
-                    if rate_val >= 100:
-                        color = "#16a34a"
-                    elif rate_val >= 70:
-                        color = "#f97316"
-                    elif rate_val < 0:
-                        color = "#6b7280"
-                    else:
-                        color = "#0ea5e9"
+                        if rate_val >= 100:
+                            color = "#16a34a"
+                        elif rate_val >= 70:
+                            color = "#f97316"
+                        elif rate_val < 0:
+                            color = "#6b7280"
+                        else:
+                            color = "#0ea5e9"
 
-                    # 依股價波動位階決定卡片底色：
-                    # 大於等於 100% → 紅色系；低於 100% → 綠色系
-                    card_bg = "#0f172a"
-                    try:
-                        if price_volatility is not None and not pd.isna(price_volatility):
-                            if float(price_volatility) >= 100:
-                                card_bg = "#451a1a"  # 深紅色系
-                            else:
-                                card_bg = "#064e3b"  # 深綠色系
-                    except Exception:
-                        pass
+                        # 依股價波動位階決定卡片底色：
+                        # 大於等於 100% → 紅色系；低於 100% → 綠色系
+                        card_bg = "#0f172a"
+                        try:
+                            if price_volatility is not None and not pd.isna(price_volatility):
+                                if float(price_volatility) >= 100:
+                                    card_bg = "#451a1a"  # 深紅色系
+                                else:
+                                    card_bg = "#064e3b"  # 深綠色系
+                        except Exception:
+                            pass
 
-                    if is_latest:
-                        status_text = "已公布最新月份"
-                        status_color = "#22c55e"
-                    else:
-                        status_text = "尚未公布最新月份"
-                        status_color = "#f97316"
+                        if is_latest:
+                            status_text = "已公布最新月份"
+                            status_color = "#22c55e"
+                        else:
+                            status_text = "尚未公布最新月份"
+                            status_color = "#f97316"
 
-                    st.markdown(
-                        f"""
+                        st.markdown(
+                            f"""
                         <div style="
                             border-radius: 12px;
                             padding: 14px 16px;
@@ -278,13 +282,13 @@ if st.session_state.view == "🏠 總覽首頁":
                             </div>
                         </div>
                         """,
-                        unsafe_allow_html=True,
-                    )
+                            unsafe_allow_html=True,
+                        )
 
-                    if st.button("查看詳細", key=f"detail_{sid}"):
-                        st.session_state.selected_stock = sid
-                        st.session_state.view = "📈 個股詳細資料"
-                        st.rerun()
+                        if st.button("查看詳細", key=f"detail_{sid}"):
+                            st.session_state.selected_stock = sid
+                            st.session_state.view = "📈 個股詳細資料"
+                            st.rerun()
         else:
             st.info("尚無足夠資料計算達成率。")
 
@@ -454,7 +458,7 @@ elif st.session_state.view == "💰 基本面估價觀測":
             else:
                 st.error(
                     f"【結論】{stock_name} 目前股價 ({current_price:.2f} 元) "
-                    f"高於或接近基本面推估價 ({est_fair_price:.2f} 元)，已反映基本面或偏貴。"
+                    f"高於或接近基本面推估價 ({est_fair_price:.2f} 元)，屬於相對偏貴區間。"
                 )
 
         except FileNotFoundError as e:

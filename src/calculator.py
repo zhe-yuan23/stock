@@ -148,7 +148,7 @@ def run_valuation(stock_id):
         if is_undervalued:
             print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 低於基本面推估價 ({est_fair_price:.2f})，屬於相對便宜區間！\n")
         else:
-            print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 高於基本面推估價 ({est_fair_price:.2f})，已反映基本面或偏貴。\n")
+            print(f"💡 【結論】：{stock_name} 目前股價 ({current_price}) 高於基本面推估價 ({est_fair_price:.2f})，屬於相對偏貴區間。\n")
 
     except FileNotFoundError as e:
         print(f"\n========== 📈 啟動 {stock_id} 估價計算機 ==========")
