@@ -225,6 +225,11 @@ if st.session_state.view == "🏠 總覽首頁":
                         last_month_display = row.get("更新月份", "")
                         is_latest = bool(row.get("是否最新月份", False))
                         price_display = f"{float(current_price):.2f} 元" if current_price is not None and not pd.isna(current_price) else "—"
+                        volatility_display = (
+                            f"{float(price_volatility):.2f} %"
+                            if price_volatility is not None and not pd.isna(price_volatility)
+                            else "—"
+                        )
 
                         if not last_month_display or (
                             isinstance(last_month_display, float)
@@ -292,10 +297,14 @@ if st.session_state.view == "🏠 總覽首頁":
                                     {status_text}
                                 </div>
                             </div>
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; flex-shrink: 0;">
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; flex-shrink: 0; gap: 4px;">
                                 <div style="font-size: 0.8rem; color: #9ca3af;">最新股價</div>
                                 <div style="font-size: 2rem; font-weight: 700; color: #67e8f9;">
                                     {price_display}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 2px;">股價波動位階</div>
+                                <div style="font-size: 0.95rem; font-weight: 600; color: #fbbf24;">
+                                    {volatility_display}
                                 </div>
                             </div>
                         </div>
