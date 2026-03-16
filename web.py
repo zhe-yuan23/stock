@@ -321,7 +321,7 @@ if st.session_state.view == "🏠 總覽首頁":
 # 區塊 C：📈 個股詳細資料
 # ==========================================
 elif st.session_state.view == "📈 個股詳細資料":
-    st.title("個股營收追蹤")
+    st.title("個股詳細資訊")
 
     if not st.session_state.selected_stock:
         st.warning("請先在首頁點選一檔股票以查看詳細資料。")
