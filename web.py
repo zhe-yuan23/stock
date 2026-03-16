@@ -58,13 +58,11 @@ def _get_baseline_revenue_for_estimate(stock_id: str, target_year: int, df_reven
 # 區塊 A：側邊欄導覽列與自動掃描資料夾
 # ==========================================
 st.sidebar.title("導覽選單")
-sidebar_page = st.sidebar.radio("請選擇頁面", ["🏠 總覽首頁", "💰 基本面估價觀測"])
+sidebar_page = st.sidebar.radio("請選擇頁面", ["🏠 總覽首頁"])
 st.sidebar.markdown("---")
 
-# 個股詳細頁時仍允許直接切換到「基本面估價觀測」，減少多一步返回首頁的動作
-if sidebar_page == "💰 基本面估價觀測":
-    st.session_state.view = sidebar_page
-elif st.session_state.view != "📈 個股詳細資料":
+# 個股詳細頁時維持在詳細檢視，其餘情況依側邊欄切換
+if st.session_state.view != "📈 個股詳細資料":
     st.session_state.view = sidebar_page
 
 # 🌟 修改掃描邏輯：改為抓取 data 目錄下的所有「子資料夾名稱」
@@ -408,88 +406,76 @@ elif st.session_state.view == "📈 個股詳細資料":
             else:
                 st.warning(f"目前還沒有 {target_year} 年的營收資料喔！")
 
+            # ------------------------------------------
+            # 💰 基本面估價觀測：移到個股營收圖表下方
+            # ------------------------------------------
+            try:
+                result = calculate_valuation(selected_stock)
+
+                val_stock_name = result["stock_name"]
+                latest_date = result["latest_date"]
+                current_price = result["current_price"]
+                current_pe = result["current_pe"]
+                est_revenue = result["est_revenue"]
+                ytd_yoy_percent = result["ytd_yoy_percent"]
+                revenue_ytd = result["revenue_ytd"]
+                rev_achieve_rate = result["rev_achieve_rate"]
+                est_net_income = result["est_net_income"]
+                net_margin = result["net_margin"]
+                est_eps = result["est_eps"]
+                eps_ytd = result["eps_ytd"]
+                eps_achieve_rate = result["eps_achieve_rate"]
+                est_dividend = result["est_dividend"]
+                avg_payout_ratio = result["avg_payout_ratio"]
+                est_fair_price = result["est_fair_price"]
+                avg_yield_3yr = result["avg_yield_3yr"]
+                est_current_yield = result["est_current_yield"]
+                price_volatility = result["price_volatility"]
+                is_undervalued = result["is_undervalued"]
+
+                st.markdown("---")
+                st.subheader(f"💰 {selected_stock} {val_stock_name} 基本面股價觀測")
+                st.caption(f"資料日期：{latest_date}（依據最新收盤價）")
+
+                col_price, col_pe, col_yield = st.columns(3)
+                col_price.metric("目前股價", f"{current_price:.2f} 元")
+                col_pe.metric("最新本益比", f"{current_pe:.2f} 倍")
+                col_yield.metric("推估現價殖利率", f"{est_current_yield:.2f} %")
+
+                st.markdown("---")
+
+                col1, col2, col3 = st.columns(3)
+                col1.metric("推估今年營收", f"{est_revenue:.2f} 億元", help=f"年增率設定：約 {ytd_yoy_percent:.2f} %")
+                col2.metric("目前累計營收", f"{revenue_ytd:.2f} 億元")
+                col3.metric("營收達成率", f"{rev_achieve_rate:.2f} %")
+
+                col4, col5, col6 = st.columns(3)
+                col4.metric("推估稅後淨利", f"{est_net_income:.2f} 億元", help=f"反推淨利率：約 {net_margin:.2f} %")
+                col5.metric("推估全年 EPS", f"{est_eps:.2f} 元")
+                col6.metric("EPS 達成率", f"{eps_achieve_rate:.2f} %", help=f"目前累計 EPS：{eps_ytd}")
+
+                col7, col8, col9 = st.columns(3)
+                col7.metric("推估總股息", f"{est_dividend:.2f} 元", help=f"近 7 年平均分配率：約 {avg_payout_ratio:.2f} %")
+                col8.metric("推估基本面價", f"{est_fair_price:.2f} 元", help=f"採用近 3 年平均殖利率：約 {avg_yield_3yr:.2f} %")
+                col9.metric("股價波動位階", f"{price_volatility:.2f} %", help="現價佔基本面價的比例")
+
+                st.markdown("---")
+
+                if is_undervalued:
+                    st.success(
+                        f"【結論】{val_stock_name} 目前股價 ({current_price:.2f} 元) "
+                        f"低於基本面推估價 ({est_fair_price:.2f} 元)，屬於相對便宜區間。"
+                    )
+                else:
+                    st.error(
+                        f"【結論】{val_stock_name} 目前股價 ({current_price:.2f} 元) "
+                        f"高於或接近基本面推估價 ({est_fair_price:.2f} 元)，屬於相對偏貴區間。"
+                    )
+            except FileNotFoundError as e:
+                st.error(f"找不到估價所需資料檔案：{e.filename}")
+                st.caption("請確認自動抓取與手動建檔的資料都已經準備齊全。")
+            except Exception as e:
+                st.error(f"估價過程中發生錯誤：{e}")
+
         except FileNotFoundError:
             st.error(f"找不到 {selected_stock}_revenue.csv！")
-
-# ==========================================
-# 區塊 D：💰 基本面估價觀測（使用 calculator.py）
-# ==========================================
-elif st.session_state.view == "💰 基本面估價觀測":
-    st.title("基本面估價觀測")
-
-    if not stock_list:
-        st.warning("目前沒有任何股票資料，無法進行估價。")
-    else:
-        selected_stock = st.selectbox(
-            "請選擇要估價的股票",
-            options=stock_list,
-            format_func=lambda x: f"{x} {stock_display.get(x, '')}",
-        )
-
-        try:
-            result = calculate_valuation(selected_stock)
-
-            stock_name = result["stock_name"]
-            latest_date = result["latest_date"]
-            current_price = result["current_price"]
-            current_pe = result["current_pe"]
-            est_revenue = result["est_revenue"]
-            ytd_yoy_percent = result["ytd_yoy_percent"]
-            revenue_ytd = result["revenue_ytd"]
-            rev_achieve_rate = result["rev_achieve_rate"]
-            est_net_income = result["est_net_income"]
-            net_margin = result["net_margin"]
-            est_eps = result["est_eps"]
-            eps_ytd = result["eps_ytd"]
-            eps_achieve_rate = result["eps_achieve_rate"]
-            est_dividend = result["est_dividend"]
-            avg_payout_ratio = result["avg_payout_ratio"]
-            est_fair_price = result["est_fair_price"]
-            avg_yield_3yr = result["avg_yield_3yr"]
-            est_current_yield = result["est_current_yield"]
-            price_volatility = result["price_volatility"]
-            is_undervalued = result["is_undervalued"]
-
-            st.subheader(f"📈 {selected_stock} {stock_name} 估價結果")
-            st.caption(f"資料日期：{latest_date}（依據最新收盤價）")
-
-            col_price, col_pe, col_yield = st.columns(3)
-            col_price.metric("目前股價", f"{current_price:.2f} 元")
-            col_pe.metric("最新本益比", f"{current_pe:.2f} 倍")
-            col_yield.metric("推估現價殖利率", f"{est_current_yield:.2f} %")
-
-            st.markdown("---")
-
-            col1, col2, col3 = st.columns(3)
-            col1.metric("推估今年營收", f"{est_revenue:.2f} 億元", help=f"年增率設定：約 {ytd_yoy_percent:.2f} %")
-            col2.metric("目前累計營收", f"{revenue_ytd:.2f} 億元")
-            col3.metric("營收達成率", f"{rev_achieve_rate:.2f} %")
-
-            col4, col5, col6 = st.columns(3)
-            col4.metric("推估稅後淨利", f"{est_net_income:.2f} 億元", help=f"反推淨利率：約 {net_margin:.2f} %")
-            col5.metric("推估全年 EPS", f"{est_eps:.2f} 元")
-            col6.metric("EPS 達成率", f"{eps_achieve_rate:.2f} %", help=f"目前累計 EPS：{eps_ytd}")
-
-            col7, col8, col9 = st.columns(3)
-            col7.metric("推估總股息", f"{est_dividend:.2f} 元", help=f"近 7 年平均分配率：約 {avg_payout_ratio:.2f} %")
-            col8.metric("推估基本面價", f"{est_fair_price:.2f} 元", help=f"採用近 3 年平均殖利率：約 {avg_yield_3yr:.2f} %")
-            col9.metric("股價波動位階", f"{price_volatility:.2f} %", help="現價佔基本面價的比例")
-
-            st.markdown("---")
-
-            if is_undervalued:
-                st.success(
-                    f"【結論】{stock_name} 目前股價 ({current_price:.2f} 元) "
-                    f"低於基本面推估價 ({est_fair_price:.2f} 元)，屬於相對便宜區間。"
-                )
-            else:
-                st.error(
-                    f"【結論】{stock_name} 目前股價 ({current_price:.2f} 元) "
-                    f"高於或接近基本面推估價 ({est_fair_price:.2f} 元)，屬於相對偏貴區間。"
-                )
-
-        except FileNotFoundError as e:
-            st.error(f"找不到必要資料檔案：{e.filename}")
-            st.caption("請確認自動抓取與手動建檔的資料都已經準備齊全。")
-        except Exception as e:
-            st.error(f"估價過程中發生錯誤：{e}")
