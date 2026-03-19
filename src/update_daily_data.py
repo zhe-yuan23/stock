@@ -2,6 +2,49 @@ import os
 import requests
 import pandas as pd
 from datetime import datetime
+import time
+
+DEFAULT_CONNECT_TIMEOUT_S = float(os.getenv("STOCK_API_CONNECT_TIMEOUT_S", "10"))
+DEFAULT_READ_TIMEOUT_S = float(os.getenv("STOCK_API_READ_TIMEOUT_S", "60"))
+DEFAULT_MAX_RETRIES = int(os.getenv("STOCK_API_MAX_RETRIES", "4"))
+DEFAULT_BACKOFF_BASE_S = float(os.getenv("STOCK_API_BACKOFF_BASE_S", "1.0"))
+
+
+def _http_get_json(
+    url: str,
+    *,
+    timeout=(DEFAULT_CONNECT_TIMEOUT_S, DEFAULT_READ_TIMEOUT_S),
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    backoff_base_s: float = DEFAULT_BACKOFF_BASE_S,
+):
+    """
+    GitHub Actions 偶發網路抖動時，TWSE OpenAPI 可能會連線逾時。
+    這裡用顯式 timeout + 重試(指數退避)讓更新更穩定。
+    """
+    headers = {
+        "User-Agent": "stock_api/1.0 (+https://github.com)",
+        "Accept": "application/json, text/json, */*",
+    }
+
+    last_exc = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout)
+            if resp.status_code in (429, 500, 502, 503, 504):
+                raise requests.HTTPError(
+                    f"HTTP {resp.status_code} from {url}", response=resp
+                )
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.Timeout, requests.ConnectionError, requests.HTTPError) as e:
+            last_exc = e
+            if attempt >= max_retries:
+                break
+            sleep_s = backoff_base_s * (2 ** (attempt - 1))
+            print(f"⚠️ 連線不穩定，{attempt}/{max_retries} 失敗，{sleep_s:.1f}s 後重試：{e}")
+            time.sleep(sleep_s)
+
+    raise last_exc
 
 # 股價
 # 殖利率/本益比/淨值比
@@ -11,9 +54,7 @@ def get_real_latest_trading_date():
     """向官方大盤 API 查詢最近一個真實的交易日期"""
     url = "https://openapi.twse.com.tw/v1/exchangeReport/FMTQIK"
     try:
-        resp = requests.get(url)
-        resp.raise_for_status()
-        data = resp.json()
+        data = _http_get_json(url)
         latest_record = data[-1]
         roc_date_str = latest_record['Date'] 
         year = int(roc_date_str[:-4]) + 1911
@@ -49,9 +90,8 @@ def update_daily_data(stock_ids, base_dir="data"):
     # ================= 抓取股價 =================
     try:
         print("正在抓取並更新股價...")
-        resp = requests.get("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")
-        resp.raise_for_status()
-        df = pd.DataFrame(resp.json())
+        data = _http_get_json("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")
+        df = pd.DataFrame(data)
         df_target = df[df['Code'].isin(stock_ids)].copy()
         
         for _, row in df_target.iterrows():
@@ -72,9 +112,8 @@ def update_daily_data(stock_ids, base_dir="data"):
     # ================= 抓取估值 =================
     try:
         print("正在抓取並更新估值(殖利率/本益比/淨值比)...")
-        resp = requests.get("https://openapi.twse.com.tw/v1/exchangeReport/BWIBBU_ALL")
-        resp.raise_for_status()
-        df = pd.DataFrame(resp.json())
+        data = _http_get_json("https://openapi.twse.com.tw/v1/exchangeReport/BWIBBU_ALL")
+        df = pd.DataFrame(data)
         df_target = df[df['Code'].isin(stock_ids)].copy()
         
         for _, row in df_target.iterrows():
@@ -101,9 +140,8 @@ def update_daily_data(stock_ids, base_dir="data"):
     # ================= 抓取發行股數 =================
     try:
         print("正在抓取並更新發行股數...")
-        resp = requests.get("https://openapi.twse.com.tw/v1/opendata/t187ap03_L")
-        resp.raise_for_status()
-        df = pd.DataFrame(resp.json())
+        data = _http_get_json("https://openapi.twse.com.tw/v1/opendata/t187ap03_L")
+        df = pd.DataFrame(data)
         df_target = df[df['公司代號'].isin(stock_ids)].copy()
         
         for _, row in df_target.iterrows():
