@@ -1,4 +1,5 @@
 const DEFAULT_API_BASE = "https://stock-27af.onrender.com";
+// const DEFAULT_API_BASE = "https://stock-27af.onrender.com";
 const API_KEY = "apiBase";
 
 function getApiBase() {
@@ -237,7 +238,7 @@ function initBackButton() {
   });
 }
 
-initApiBar();
+// initApiBar();
 initBackButton();
 loadDetail();
 
