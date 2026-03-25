@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>台股營收追蹤 - 總覽</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1220;
+        --panel: #111a2e;
+        --muted: #9ca3af;
+        --border: #1f2937;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+          "Segoe UI Emoji";
+        background: var(--bg);
+        color: #e5e7eb;
+      }
+      header {
+        padding: 18px 18px 6px 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .titleBlock {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0;
+      }
+      .caption {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .apiBar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .apiBar input {
+        width: 360px;
+        max-width: 70vw;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: inherit;
+        outline: none;
+      }
+      .apiBar button {
+        background: #2563eb;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: white;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .wrap {
+        padding: 12px 18px 28px 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 520px) {
+        .grid {
+          grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
+      }
+      .card {
+        border-radius: 12px;
+        padding: 14px 16px;
+        background: #0f172a;
+        border: 1px solid #1f2937;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.35);
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: stretch;
+        gap: 12px;
+        min-height: 128px;
+      }
+      .card .left {
+        flex: 1;
+        min-width: 0;
+      }
+      .subtle {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .companyName {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 2px 0 6px 0;
+        line-height: 1.2;
+        word-break: break-word;
+      }
+      .achieveLabel {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .achieveValue {
+        font-size: 22px;
+        font-weight: 800;
+        margin-top: 4px;
+      }
+      .monthText {
+        font-size: 12px;
+        margin-top: 6px;
+        color: var(--muted);
+      }
+      .statusText {
+        font-size: 12px;
+        margin-top: 6px;
+        font-weight: 600;
+      }
+      .right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      .priceValue {
+        font-size: 28px;
+        font-weight: 800;
+        color: #67e8f9;
+      }
+      .btnRow {
+        margin-top: 10px;
+      }
+      .detailBtn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 12px;
+        color: #e5e7eb;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .loading {
+        padding: 18px;
+        color: var(--muted);
+      }
+      .notice {
+        margin: 12px 0 16px 0;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #0f172a;
+        border: 1px solid #1f2937;
+        color: #93c5fd;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="titleBlock">
+        <h1 id="pageTitle">台股營收追蹤 - 總覽</h1>
+        <div class="caption" id="pageCaption">載入中...</div>
+      </div>
+      <div class="apiBar">
+        <input id="apiBaseInput" type="text" placeholder="API Base URL（例如 http://localhost:8000）" />
+        <button id="saveApiBase">儲存</button>
+      </div>
+    </header>
+    <div class="wrap">
+      <div class="notice" id="topNotice" style="display: none">
+        點選卡片下方「查看詳細」進入個股頁面
+      </div>
+      <div id="grid" class="grid"></div>
+      <div id="loading" class="loading">正在抓取摘要資料...</div>
+    </div>
+    <script src="index.js"></script>
+  </body>
+</html>
+
