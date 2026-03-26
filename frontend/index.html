@@ -1,194 +1,560 @@
 <!doctype html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>台股營收追蹤 - 總覽</title>
-    <style>
-      :root {
-        color-scheme: dark;
-        --bg: #0b1220;
-        --panel: #111a2e;
-        --muted: #9ca3af;
-        --border: #1f2937;
-      }
-      body {
-        margin: 0;
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
-          "Segoe UI Emoji";
-        background: var(--bg);
-        color: #e5e7eb;
-      }
-      header {
-        padding: 18px 18px 6px 18px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .titleBlock {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      h1 {
-        font-size: 20px;
-        margin: 0;
-      }
-      .caption {
-        color: var(--muted);
-        font-size: 13px;
-      }
-      .apiBar {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-      .apiBar input {
-        width: 360px;
-        max-width: 70vw;
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 10px 12px;
-        color: inherit;
-        outline: none;
-      }
-      .apiBar button {
-        background: #2563eb;
-        border: none;
-        border-radius: 10px;
-        padding: 10px 14px;
-        color: white;
-        cursor: pointer;
-        font-weight: 600;
-      }
-      .wrap {
-        padding: 12px 18px 28px 18px;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-      }
-      @media (max-width: 900px) {
-        .grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-      @media (max-width: 520px) {
-        .grid {
-          grid-template-columns: repeat(1, minmax(0, 1fr));
-        }
-      }
-      .card {
-        border-radius: 12px;
-        padding: 14px 16px;
-        background: #0f172a;
-        border: 1px solid #1f2937;
-        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.35);
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: stretch;
-        gap: 12px;
-        min-height: 128px;
-      }
-      .card .left {
-        flex: 1;
-        min-width: 0;
-      }
-      .subtle {
-        font-size: 12px;
-        color: var(--muted);
-      }
-      .companyName {
-        font-size: 16px;
-        font-weight: 700;
-        margin: 2px 0 6px 0;
-        line-height: 1.2;
-        word-break: break-word;
-      }
-      .achieveLabel {
-        font-size: 13px;
-        color: var(--muted);
-        margin-top: 6px;
-      }
-      .achieveValue {
-        font-size: 22px;
-        font-weight: 800;
-        margin-top: 4px;
-      }
-      .monthText {
-        font-size: 12px;
-        margin-top: 6px;
-        color: var(--muted);
-      }
-      .statusText {
-        font-size: 12px;
-        margin-top: 6px;
-        font-weight: 600;
-      }
-      .right {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        justify-content: center;
-        gap: 4px;
-        flex-shrink: 0;
-      }
-      .priceValue {
-        font-size: 28px;
-        font-weight: 800;
-        color: #67e8f9;
-      }
-      .btnRow {
-        margin-top: 10px;
-      }
-      .detailBtn {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 8px 12px;
-        color: #e5e7eb;
-        cursor: pointer;
-        font-weight: 700;
-      }
-      .loading {
-        padding: 18px;
-        color: var(--muted);
-      }
-      .notice {
-        margin: 12px 0 16px 0;
-        padding: 12px 14px;
-        border-radius: 12px;
-        background: #0f172a;
-        border: 1px solid #1f2937;
-        color: #93c5fd;
-        font-weight: 600;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div class="titleBlock">
-        <h1 id="pageTitle">台股營收追蹤 - 總覽</h1>
-        <div class="caption" id="pageCaption">載入中...</div>
-      </div>
-      <!-- <div class="apiBar">
-        <input id="apiBaseInput" type="text" placeholder="API Base URL（例如 http://localhost:8000）" />
-        <button id="saveApiBase">儲存</button>
-      </div> -->
-    </header>
-    <div class="wrap">
-      <div class="notice" id="topNotice" style="display: none">
-        點選卡片下方「查看詳細」進入個股頁面
-      </div>
-      <div id="grid" class="grid"></div>
-      <div id="loading" class="loading">正在抓取摘要資料...</div>
-    </div>
-    <script src="index.js"></script>
-  </body>
-</html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台股營收追蹤</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #080c10;
+      --surface:   #0d1117;
+      --surface2:  #111820;
+      --border:    #1c2530;
+      --border2:   #243040;
+      --text:      #cdd5e0;
+      --muted:     #4a5f72;
+      --muted2:    #6b8096;
+      --accent:    #00d4ff;
+      --accent2:   #0095b3;
+      --green:     #00e676;
+      --green-dim: #00a352;
+      --red:       #ff3d5a;
+      --red-dim:   #b02038;
+      --orange:    #ff9800;
+      --gold:      #ffd740;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans TC', sans-serif;
+    }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,212,255,0.012) 2px,
+        rgba(0,212,255,0.012) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      height: 52px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-right: 20px;
+      border-right: 1px solid var(--border);
+      height: 100%;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding-left: 20px;
+      flex: 1;
+    }
+
+    .nav-item {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--muted2);
+      padding: 0 16px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      text-transform: uppercase;
+    }
+
+    .nav-item.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #clock {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted2);
+      letter-spacing: 0.05em;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse-green 2s infinite;
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,230,118,0.4); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(0,230,118,0); }
+    }
+
+    /* ── TOOLBAR ── */
+    .toolbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .year-label {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.04em;
+    }
+
+    .year-label span {
+      color: var(--accent);
+    }
+
+    .sub-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+      letter-spacing: 0.05em;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sort-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      color: var(--muted2);
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
+
+    .sort-btn:hover, .sort-btn.active {
+      background: var(--border2);
+      color: var(--accent);
+      border-color: var(--accent2);
+    }
+
+    /* ── GRID ── */
+    .wrap { padding: 16px 20px 40px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    @media (max-width: 960px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fadeUp 0.3s forwards;
+    }
+
+    .card:hover {
+      border-color: var(--accent2);
+      box-shadow: 0 0 20px rgba(0,149,179,0.15), inset 0 0 30px rgba(0,212,255,0.02);
+      transform: translateY(-2px);
+    }
+
+    .card.bg-green { background: #051a0f; }
+    .card.bg-red   { background: #160508; }
+
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-accent-bar {
+      height: 2px;
+      width: 100%;
+    }
+    .card.bg-green .card-accent-bar { background: linear-gradient(90deg, var(--green-dim), transparent); }
+    .card.bg-red   .card-accent-bar { background: linear-gradient(90deg, var(--red-dim), transparent); }
+    .card.bg-none  .card-accent-bar { background: var(--border); }
+
+    .card-body {
+      padding: 12px 14px 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .card-left { flex: 1; min-width: 0; }
+
+    .stock-code {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 2px;
+    }
+
+    .stock-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #e8eff8;
+      line-height: 1.2;
+      margin-bottom: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .achieve-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .achieve-value {
+      font-family: var(--mono);
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .achieve-value.green { color: var(--green); }
+    .achieve-value.orange { color: var(--orange); }
+    .achieve-value.blue { color: var(--accent); }
+    .achieve-value.gray { color: var(--muted); }
+
+    .card-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-top: 8px;
+    }
+
+    .meta-row {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .meta-row.latest { color: var(--green); }
+    .meta-row.pending { color: var(--orange); }
+
+    .card-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .price-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-align: right;
+    }
+
+    .price-value {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      text-align: right;
+    }
+
+    .price-unit {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--muted2);
+      margin-left: 2px;
+    }
+
+    .volatility-wrap {
+      text-align: right;
+    }
+
+    .volatility-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    .volatility-value {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .detail-btn {
+      background: transparent;
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      color: var(--muted2);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      padding: 5px 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .detail-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,212,255,0.06);
+    }
+
+    /* ── LOADING ── */
+    .loading-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      gap: 16px;
+    }
+
+    .loading-bar {
+      width: 200px;
+      height: 2px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loading-bar::after {
+      content: '';
+      position: absolute;
+      left: -60%;
+      top: 0;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: loading-sweep 1.2s infinite;
+    }
+
+    @keyframes loading-sweep {
+      to { left: 160%; }
+    }
+
+    .loading-text {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      animation: blink 1.5s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      display: flex;
+      gap: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .stat-item {
+      flex: 1;
+      padding: 8px 14px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-item:last-child { border-right: none; }
+
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.accent { color: var(--accent); }
+
+    @media (max-width: 560px) {
+      .stats-bar { flex-wrap: wrap; }
+      .stat-item { flex: 1 1 45%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <div class="logo-icon"></div>
+    <div class="logo-text">TWSTOCK</div>
+  </div>
+  <nav class="header-nav">
+    <div class="nav-item active">OVERVIEW</div>
+  </nav>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-left">
+    <div class="year-label"><span id="targetYear">----</span> 年度 <span style="color:var(--muted2);font-size:13px;">/ 營收達成率總覽</span></div>
+    <div class="sub-label" id="subLabel">LOADING DATA...</div>
+  </div>
+  <div class="toolbar-right">
+    <button class="sort-btn active" id="sortAchieve" onclick="sortBy('achieve')">達成率↓</button>
+    <button class="sort-btn" id="sortPrice" onclick="sortBy('price')">股價</button>
+    <button class="sort-btn" id="sortVolatility" onclick="sortBy('vol')">波動位階↓</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="stats-bar" id="statsBar" style="display:none;">
+    <div class="stat-item">
+      <div class="stat-label">追蹤標的</div>
+      <div class="stat-value accent" id="statTotal">—</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">達成率 ≥ 70%</div>
+      <div class="stat-value green" id="statHigh">—</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">達成率 ≥ 100%</div>
+      <div class="stat-value green" id="statFull">—</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">相對便宜</div>
+      <div class="stat-value green" id="statCheap">—</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">相對偏貴</div>
+      <div class="stat-value red" id="statExp">—</div>
+    </div>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <div id="loading" class="loading-screen">
+    <div class="loading-bar"></div>
+    <div class="loading-text">抓取市場資料中...</div>
+  </div>
+</div>
+
+<script src="index.js"></script>
+</body>
+</html>

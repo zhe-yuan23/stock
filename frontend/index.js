@@ -6,151 +6,193 @@ function getApiBase() {
   return localStorage.getItem(API_KEY) || DEFAULT_API_BASE;
 }
 
-function setApiBase(v) {
-  localStorage.setItem(API_KEY, v);
+function $(id) { return document.getElementById(id); }
+
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  $('clock').textContent = `${h}:${m}:${s}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Formatters ──
+function fmt(v, d = 2) {
+  if (v === null || v === undefined) return '—';
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(d) : '—';
 }
 
-function $(id) {
-  return document.getElementById(id);
+function fmtAchieve(v) {
+  if (v === null || v === undefined) return '尚未公布';
+  const n = Number(v);
+  return Number.isFinite(n) ? `${n.toFixed(1)}%` : '尚未公布';
 }
 
-function formatPrice(v) {
-  if (v === null || v === undefined) return "—";
-  if (typeof v !== "number") v = Number(v);
-  if (!Number.isFinite(v)) return "—";
-  return `${v.toFixed(2)} 元`;
-}
-
-function formatVolatility(v) {
-  if (v === null || v === undefined) return "—";
-  if (typeof v !== "number") v = Number(v);
-  if (!Number.isFinite(v)) return "—";
-  return `${v.toFixed(2)} %`;
-}
-
-function formatAchieveRate(v) {
-  if (v === null || v === undefined) return "尚未公布";
-  if (typeof v !== "number") v = Number(v);
-  if (!Number.isFinite(v)) return "尚未公布";
-  return `${v} %`;
-}
-
-function achieveColor(rate) {
-  if (rate === null || rate === undefined) return "#6b7280";
+function achieveClass(rate) {
+  if (rate === null || rate === undefined) return 'gray';
   const v = Number(rate);
-  if (!Number.isFinite(v)) return "#6b7280";
-  if (v >= 100) return "#16a34a";
-  if (v >= 70) return "#f97316";
-  if (v < 0) return "#6b7280";
-  return "#0ea5e9";
+  if (!Number.isFinite(v)) return 'gray';
+  if (v >= 100) return 'green';
+  if (v >= 70) return 'orange';
+  return 'blue';
 }
 
-function cardBgByVolatility(vol) {
-  let cardBg = "#0f172a";
-  if (vol === null || vol === undefined) return cardBg;
+function cardBgClass(vol) {
+  if (vol === null || vol === undefined) return 'bg-none';
   const v = Number(vol);
-  if (!Number.isFinite(v)) return cardBg;
-  if (v >= 100) return "#451a1a";
-  return "#064e3b";
+  if (!Number.isFinite(v)) return 'bg-none';
+  return v >= 100 ? 'bg-red' : 'bg-green';
 }
 
-function buildCard(item) {
-  const rate = item.revenue_achieve_rate;
-  const color = achieveColor(rate);
-  const cardBg = cardBgByVolatility(item.price_volatility);
-  const statusText = item.is_latest ? "已公布最新月份" : "尚未公布最新月份";
-  const statusColor = item.is_latest ? "#22c55e" : "#f97316";
-  const monthText = item.update_month ? `營收更新至：${item.update_month}` : "營收更新月份：尚未公布";
-  const priceDisplay = formatPrice(item.current_price);
-  const volatilityDisplay = formatVolatility(item.price_volatility);
+// ── State ──
+let allItems = [];
+let currentSort = 'achieve';
 
-  const card = document.createElement("div");
-  card.className = "card";
-  card.style.background = cardBg;
+function sortBy(key) {
+  currentSort = key;
+  ['sortAchieve', 'sortPrice', 'sortVolatility'].forEach(id => $( id) && $( id).classList.remove('active'));
+  const btnMap = { achieve: 'sortAchieve', price: 'sortPrice', vol: 'sortVolatility' };
+  if ($(btnMap[key])) $(btnMap[key]).classList.add('active');
+
+  const sorted = [...allItems].sort((a, b) => {
+    if (key === 'achieve') {
+      const av = a.revenue_achieve_rate ?? -1;
+      const bv = b.revenue_achieve_rate ?? -1;
+      return bv - av;
+    }
+    if (key === 'price') {
+      const av = a.current_price ?? -1;
+      const bv = b.current_price ?? -1;
+      return bv - av;
+    }
+    if (key === 'vol') {
+      const av = a.price_volatility ?? -1;
+      const bv = b.price_volatility ?? -1;
+      return bv - av; // higher volatility = expensive = at first
+    }
+    return 0;
+  });
+  renderCards(sorted);
+}
+
+// ── Stats bar ──
+function renderStats(items) {
+  const total = items.length;
+  const high = items.filter(i => (i.revenue_achieve_rate ?? 0) >= 70).length;
+  const full = items.filter(i => (i.revenue_achieve_rate ?? 0) >= 100).length;
+  const cheap = items.filter(i => i.price_volatility !== null && Number(i.price_volatility) < 100).length;
+  const exp = items.filter(i => i.price_volatility !== null && Number(i.price_volatility) >= 100).length;
+
+  $('statTotal').textContent = total;
+  $('statHigh').textContent = high;
+  $('statFull').textContent = full;
+  $('statCheap').textContent = cheap;
+  $('statExp').textContent = exp;
+  $('statsBar').style.display = 'flex';
+}
+
+// ── Card builder ──
+function buildCard(item, index) {
+  const rate = item.revenue_achieve_rate;
+  const vol = item.price_volatility;
+  const priceDisplay = item.current_price !== null && item.current_price !== undefined
+    ? `${fmt(item.current_price, 2)}<span class="price-unit">元</span>`
+    : '—';
+  const volDisplay = vol !== null && vol !== undefined ? `${fmt(vol, 2)} %` : '—';
+  const monthText = item.update_month ? `更新至 ${item.update_month}` : '尚未公布';
+  const statusClass = item.is_latest ? 'latest' : 'pending';
+  const statusText = item.is_latest ? '▲ 最新月份' : '◌ 待更新';
+
+  const card = document.createElement('div');
+  card.className = `card ${cardBgClass(vol)}`;
+  card.style.animationDelay = `${index * 40}ms`;
 
   card.innerHTML = `
-    <div class="left">
-      <div class="subtle">${item.stock_id}</div>
-      <div class="companyName">${item.company_name_short || ""}</div>
-      <div class="achieveLabel">目前達成率</div>
-      <div class="achieveValue" style="color:${color};">${formatAchieveRate(rate)}</div>
-      <div class="monthText">${monthText}</div>
-      <div class="statusText" style="color:${statusColor};">${statusText}</div>
-    </div>
-    <div class="right">
-      <div class="subtle">最新股價</div>
-      <div class="priceValue">${priceDisplay}</div>
-      <div class="subtle">股價波動位階</div>
-      <div style="font-size:14px; font-weight:700; color:#fbbf24;">${volatilityDisplay}</div>
-      <div class="btnRow">
-        <button class="detailBtn" data-sid="${item.stock_id}">查看詳細</button>
+    <div class="card-accent-bar"></div>
+    <div class="card-body">
+      <div class="card-left">
+        <div class="stock-code">${item.stock_id}</div>
+        <div class="stock-name">${item.company_name_short || '未知'}</div>
+        <div class="achieve-label">YTD 達成率</div>
+        <div class="achieve-value ${achieveClass(rate)}">${fmtAchieve(rate)}</div>
+        <div class="card-meta">
+          <div class="meta-row">${monthText}</div>
+          <div class="meta-row ${statusClass}">${statusText}</div>
+        </div>
+      </div>
+      <div class="card-right">
+        <div>
+          <div class="price-label">LAST PRICE</div>
+          <div class="price-value">${priceDisplay}</div>
+        </div>
+        <div class="volatility-wrap">
+          <div class="volatility-label">波動位階</div>
+          <div class="volatility-value">${volDisplay}</div>
+        </div>
+        <button class="detail-btn" data-sid="${item.stock_id}">DETAIL →</button>
       </div>
     </div>
   `;
 
-  card.querySelector("button[data-sid]").addEventListener("click", (e) => {
-    const sid = e.currentTarget.getAttribute("data-sid");
+  card.querySelector('.detail-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const sid = e.currentTarget.getAttribute('data-sid');
     window.location.href = `stock.html?stock_id=${encodeURIComponent(sid)}`;
+  });
+
+  card.addEventListener('click', () => {
+    window.location.href = `stock.html?stock_id=${encodeURIComponent(item.stock_id)}`;
   });
 
   return card;
 }
 
+// ── Render ──
+function renderCards(items) {
+  const grid = $('grid');
+  grid.innerHTML = '';
+  if (!items.length) {
+    grid.innerHTML = '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px;">NO DATA AVAILABLE</div>';
+    return;
+  }
+  items.forEach((item, i) => grid.appendChild(buildCard(item, i)));
+}
+
+// ── Fetch ──
 async function loadSummary() {
   const apiBase = getApiBase();
-  const grid = $("grid");
-  const loadingEl = $("loading");
-  const topNotice = $("topNotice");
-  const titleEl = $("pageTitle");
-  const captionEl = $("pageCaption");
-
-  grid.innerHTML = "";
-  loadingEl.style.display = "block";
-  topNotice.style.display = "none";
+  $('loading').style.display = 'flex';
+  $('grid').innerHTML = '';
 
   try {
     const res = await fetch(`${apiBase}/api/stocks/summary`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    const targetYear = data.global_target_year;
-    titleEl.textContent = `台股營收達成率總覽`;
-    captionEl.textContent = targetYear ? `${targetYear} 年度營收目標達成進度` : "載入失敗：沒有資料";
-    topNotice.style.display = "block";
-    topNotice.textContent = "點選下方「查看詳細」進入個股頁面";
+    const year = data.global_target_year;
+    $('targetYear').textContent = year || '----';
+    $('subLabel').textContent = year
+      ? `${year} ANNUAL REVENUE ACHIEVEMENT TRACKER`
+      : 'NO DATA';
 
-    const items = data.items || [];
-    if (!items.length) {
-      loadingEl.textContent = "尚無足夠資料計算達成率。";
+    allItems = data.items || [];
+    if (!allItems.length) {
+      $('loading').innerHTML = '<div class="loading-text">NO DATA AVAILABLE</div>';
       return;
     }
 
-    loadingEl.style.display = "none";
-    for (const item of items) grid.appendChild(buildCard(item));
+    renderStats(allItems);
+    sortBy('achieve');
+    $('loading').style.display = 'none';
+
   } catch (err) {
     console.error(err);
-    loadingEl.textContent = `載入失敗：${err?.message || err}`;
+    $('loading').innerHTML = `<div class="loading-text" style="color:var(--red);">ERROR: ${err?.message || err}</div>`;
   }
 }
 
-function initApiBar() {
-  const apiBaseInput = $("apiBaseInput");
-  const saveBtn = $("saveApiBase");
-  const current = getApiBase();
-  apiBaseInput.value = current;
-
-  saveBtn.addEventListener("click", () => {
-    const v = apiBaseInput.value.trim();
-    if (!v) return;
-    setApiBase(v);
-    loadSummary();
-  });
-
-  apiBaseInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") saveBtn.click();
-  });
-}
-
-// initApiBar();
 loadSummary();
-
