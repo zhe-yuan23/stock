@@ -1,5 +1,5 @@
-const DEFAULT_API_BASE = "https://stock-27af.onrender.com";
-// const DEFAULT_API_BASE = "http://localhost:8000";
+// const DEFAULT_API_BASE = "https://stock-27af.onrender.com";
+const DEFAULT_API_BASE = "http://localhost:8000";
 const API_KEY = "apiBase";
 
 function getApiBase() {
@@ -78,6 +78,8 @@ async function loadDetail() {
 
     // ── Hero strip ──
     const v = data.valuation;
+    // 從資料中取得最新日期
+    const latestDate = data.valuation?.latest_date || null;
     if (v) {
       const heroPrice = $('heroPrice');
       heroPrice.innerHTML = v.current_price !== null
@@ -89,6 +91,7 @@ async function loadDetail() {
         : '—';
       $('heroVolatility').textContent = v.price_volatility !== null ? `${fmt(v.price_volatility, 2)} %` : '—';
       $('heroYield').textContent = v.est_current_yield !== null ? `${fmt(v.est_current_yield, 2)} %` : '—';
+      $('heroDate').textContent = latestDate || '—';
     }
     $('heroStrip').style.display = 'flex';
 
@@ -172,15 +175,15 @@ async function loadDetail() {
     // ── Table ──
     const tbody = $('tableBody');
     tbody.innerHTML = '';
-    const rows = (data.table_rows || []).slice().reverse(); // newest first
+    const rows = (data.table_rows || []).slice(); // latest first .reverse()
     for (const row of rows) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${row.date ? row.date.slice(0, 7) : '—'}</td>
         <td>${row.revenue_mon_bil !== null ? fmt(row.revenue_mon_bil) : '—'}</td>
-        <td style="color:${(row.yoy_percent ?? 0) >= 0 ? 'var(--green)' : 'var(--red)'}">${row.yoy_percent !== null ? fmtPct(row.yoy_percent) : '—'}</td>
+        <td style="color:${(row.yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.yoy_percent !== null ? fmtPct(row.yoy_percent) : '—'}</td>
         <td>${row.revenue_ytd_bil !== null ? fmt(row.revenue_ytd_bil) : '—'}</td>
-        <td style="color:${(row.ytd_yoy_percent ?? 0) >= 0 ? 'var(--green)' : 'var(--red)'}">${row.ytd_yoy_percent !== null ? fmtPct(row.ytd_yoy_percent) : '—'}</td>
+        <td style="color:${(row.ytd_yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.ytd_yoy_percent !== null ? fmtPct(row.ytd_yoy_percent) : '—'}</td>
       `;
       tbody.appendChild(tr);
     }
