@@ -200,6 +200,94 @@ def input_3yr_avg_yield():
     df_final.to_csv(file_path, index=False)
     print(f"✅ {stock_id} 的 {year} 年近三年平均殖利率已成功存放到 data/manual_data/{stock_id}/ 裡面！\n")
 
+def input_historical_pe():
+    """輸入歷年最高/最低本益比"""
+    print("\n--- 📝 進入 [歷年本益比極值] 輸入模式 ---")
+    
+    year = input("請輸入資料年度 (例如 2023): ").strip()
+    stock_id = input("請輸入股票代號 (例如 2881): ").strip()
+
+    stock_dir = os.path.join(MANUAL_DIR, stock_id)
+    os.makedirs(stock_dir, exist_ok=True)
+    file_path = os.path.join(stock_dir, f"{stock_id}_historical_pe.csv")
+
+    def get_float_input(prompt):
+        while True:
+            val = input(prompt).strip()
+            try:
+                return float(val)
+            except ValueError:
+                print("❌ 只能輸入數字喔！請重試。")
+
+    lowest_pe = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最低本益比]: ")
+    highest_pe = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最高本益比]: ")
+
+    new_data = pd.DataFrame([{
+        "year": year,
+        "stock_id": stock_id,
+        "lowest_pe": lowest_pe,
+        "highest_pe": highest_pe
+    }])
+
+    if os.path.exists(file_path):
+        df_old = pd.read_csv(file_path)
+        df_old['stock_id'] = df_old['stock_id'].astype(str)
+        df_old['year'] = df_old['year'].astype(str)
+        
+        df_final = pd.concat([df_old, new_data], ignore_index=True)
+        df_final = df_final.drop_duplicates(subset=['year'], keep='last')
+    else:
+        df_final = new_data
+
+    # 確保年份由小到大排序，最新年份在最下方
+    df_final = df_final.sort_values(by='year', ascending=True)
+    df_final.to_csv(file_path, index=False)
+    print(f"✅ {stock_id} 的 {year} 年 [本益比] 資料已成功存放到 data/manual_data/{stock_id}/ 裡面！\n")
+
+
+def input_historical_yield():
+    """輸入歷年最高/最低殖利率"""
+    print("\n--- 📝 進入 [歷年殖利率極值] 輸入模式 ---")
+    
+    year = input("請輸入資料年度 (例如 2023): ").strip()
+    stock_id = input("請輸入股票代號 (例如 2881): ").strip()
+
+    stock_dir = os.path.join(MANUAL_DIR, stock_id)
+    os.makedirs(stock_dir, exist_ok=True)
+    file_path = os.path.join(stock_dir, f"{stock_id}_historical_yield.csv")
+
+    def get_float_input(prompt):
+        while True:
+            val = input(prompt).strip()
+            try:
+                return float(val)
+            except ValueError:
+                print("❌ 只能輸入數字喔！請重試。")
+
+    lowest_yield = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最低殖利率] (%): ")
+    highest_yield = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最高殖利率] (%): ")
+
+    new_data = pd.DataFrame([{
+        "year": year,
+        "stock_id": stock_id,
+        "lowest_yield_pct": lowest_yield,
+        "highest_yield_pct": highest_yield
+    }])
+
+    if os.path.exists(file_path):
+        df_old = pd.read_csv(file_path)
+        df_old['stock_id'] = df_old['stock_id'].astype(str)
+        df_old['year'] = df_old['year'].astype(str)
+        
+        df_final = pd.concat([df_old, new_data], ignore_index=True)
+        df_final = df_final.drop_duplicates(subset=['year'], keep='last')
+    else:
+        df_final = new_data
+
+    # 確保年份由小到大排序，最新年份在最下方
+    df_final = df_final.sort_values(by='year', ascending=True)
+    df_final.to_csv(file_path, index=False)
+    print(f"✅ {stock_id} 的 {year} 年 [殖利率] 資料已成功存放到 data/manual_data/{stock_id}/ 裡面！\n")
 
 # ================= 主程式選單 =================
 if __name__ == "__main__":
@@ -209,10 +297,12 @@ if __name__ == "__main__":
         print("2. 輸入 [歷年股利與盈餘] (查股利政策)")
         print("3. 輸入 [歷年總營收] (損益表-本業獲利)")  
         print("4. 輸入 [近三年平均殖利率] (查股利政策-近三年發放取平均)")  # 🌟 新增選項
-        print("5. 離開程式")
+        print("5. 輸入 [歷年本益比極值] (每年最低與最高本益比)") 
+        print("6. 輸入 [歷年殖利率極值] (每年最低與最高殖利率)")
+        print("7. 離開程式")
         print("======================================")
         
-        choice = input("請選擇要執行的項目 (1/2/3/4/5): ").strip()
+        choice = input("請選擇要執行的項目 (1/2/3/4/5/6/7): ").strip()
         
         if choice == '1':
             input_monthly_eps()
@@ -223,7 +313,11 @@ if __name__ == "__main__":
         elif choice == '4':
             input_3yr_avg_yield()
         elif choice == '5':
+            input_historical_pe()
+        elif choice == '6':
+            input_historical_yield()
+        elif choice == '7':
             print("👋 離開程式，記得將變更 git push 到 GitHub 喔！")
             break
         else:
-            print("❌ 輸入錯誤，請輸入 1, 2, 3, 4 或 5。")
+            print("❌ 輸入錯誤，請輸入 1, 2, 3, 4, 5, 6 或 7。")
