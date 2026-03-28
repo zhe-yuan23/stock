@@ -209,7 +209,10 @@ def input_historical_pe():
 
     stock_dir = os.path.join(MANUAL_DIR, stock_id)
     os.makedirs(stock_dir, exist_ok=True)
-    file_path = os.path.join(stock_dir, f"{stock_id}_historical_pe.csv")
+    file_path = os.path.join(stock_dir, f"{stock_id}_historical_valuation.csv")
+
+    # 🌟 強制規範標準欄位順序
+    STANDARD_COLS = ['year', 'stock_id', 'lowest_pe', 'highest_pe', 'lowest_yield_pct', 'highest_yield_pct']
 
     def get_float_input(prompt):
         while True:
@@ -222,27 +225,36 @@ def input_historical_pe():
     lowest_pe = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最低本益比]: ")
     highest_pe = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最高本益比]: ")
 
-    new_data = pd.DataFrame([{
-        "year": year,
-        "stock_id": stock_id,
-        "lowest_pe": lowest_pe,
-        "highest_pe": highest_pe
-    }])
-
+    # 讀取或建立 DataFrame
     if os.path.exists(file_path):
-        df_old = pd.read_csv(file_path)
-        df_old['stock_id'] = df_old['stock_id'].astype(str)
-        df_old['year'] = df_old['year'].astype(str)
-        
-        df_final = pd.concat([df_old, new_data], ignore_index=True)
-        df_final = df_final.drop_duplicates(subset=['year'], keep='last')
+        df = pd.read_csv(file_path)
+        df['year'] = df['year'].astype(str)
+        df['stock_id'] = df['stock_id'].astype(str)
     else:
-        df_final = new_data
+        # 檔案不存在時，建立一個帶有標準欄位的空表格
+        df = pd.DataFrame(columns=STANDARD_COLS)
 
-    # 確保年份由小到大排序，最新年份在最下方
-    df_final = df_final.sort_values(by='year', ascending=True)
-    df_final.to_csv(file_path, index=False)
-    print(f"✅ {stock_id} 的 {year} 年 [本益比] 資料已成功存放到 data/manual_data/{stock_id}/ 裡面！\n")
+    # 檢查該年份是否已經存在
+    if year in df['year'].values:
+        df.loc[df['year'] == year, 'lowest_pe'] = lowest_pe
+        df.loc[df['year'] == year, 'highest_pe'] = highest_pe
+    else:
+        # 新增一筆資料 (只填本益比，殖利率先留空)
+        new_row = pd.DataFrame([{
+            "year": year, 
+            "stock_id": stock_id, 
+            "lowest_pe": lowest_pe, 
+            "highest_pe": highest_pe,
+            "lowest_yield_pct": None,
+            "highest_yield_pct": None
+        }])
+        df = pd.concat([df, new_row], ignore_index=True)
+
+    # 🌟 存檔前：重新排序年份、並「強制重排欄位順序」
+    df = df.sort_values(by='year', ascending=True)
+    df = df[STANDARD_COLS]
+    df.to_csv(file_path, index=False)
+    print(f"✅ {stock_id} 的 {year} 年 [本益比] 資料已成功更新至 historical_valuation.csv！\n")
 
 
 def input_historical_yield():
@@ -254,7 +266,10 @@ def input_historical_yield():
 
     stock_dir = os.path.join(MANUAL_DIR, stock_id)
     os.makedirs(stock_dir, exist_ok=True)
-    file_path = os.path.join(stock_dir, f"{stock_id}_historical_yield.csv")
+    file_path = os.path.join(stock_dir, f"{stock_id}_historical_valuation.csv")
+
+    # 🌟 強制規範標準欄位順序
+    STANDARD_COLS = ['year', 'stock_id', 'lowest_pe', 'highest_pe', 'lowest_yield_pct', 'highest_yield_pct']
 
     def get_float_input(prompt):
         while True:
@@ -267,27 +282,36 @@ def input_historical_yield():
     lowest_yield = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最低殖利率] (%): ")
     highest_yield = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最高殖利率] (%): ")
 
-    new_data = pd.DataFrame([{
-        "year": year,
-        "stock_id": stock_id,
-        "lowest_yield_pct": lowest_yield,
-        "highest_yield_pct": highest_yield
-    }])
-
+    # 讀取或建立 DataFrame
     if os.path.exists(file_path):
-        df_old = pd.read_csv(file_path)
-        df_old['stock_id'] = df_old['stock_id'].astype(str)
-        df_old['year'] = df_old['year'].astype(str)
-        
-        df_final = pd.concat([df_old, new_data], ignore_index=True)
-        df_final = df_final.drop_duplicates(subset=['year'], keep='last')
+        df = pd.read_csv(file_path)
+        df['year'] = df['year'].astype(str)
+        df['stock_id'] = df['stock_id'].astype(str)
     else:
-        df_final = new_data
+        # 檔案不存在時，建立一個帶有標準欄位的空表格
+        df = pd.DataFrame(columns=STANDARD_COLS)
 
-    # 確保年份由小到大排序，最新年份在最下方
-    df_final = df_final.sort_values(by='year', ascending=True)
-    df_final.to_csv(file_path, index=False)
-    print(f"✅ {stock_id} 的 {year} 年 [殖利率] 資料已成功存放到 data/manual_data/{stock_id}/ 裡面！\n")
+    # 檢查該年份是否已經存在
+    if year in df['year'].values:
+        df.loc[df['year'] == year, 'lowest_yield_pct'] = lowest_yield
+        df.loc[df['year'] == year, 'highest_yield_pct'] = highest_yield
+    else:
+        # 新增一筆資料 (只填殖利率，本益比先留空)
+        new_row = pd.DataFrame([{
+            "year": year, 
+            "stock_id": stock_id, 
+            "lowest_pe": None, 
+            "highest_pe": None,
+            "lowest_yield_pct": lowest_yield,
+            "highest_yield_pct": highest_yield
+        }])
+        df = pd.concat([df, new_row], ignore_index=True)
+
+    # 🌟 存檔前：重新排序年份、並「強制重排欄位順序」
+    df = df.sort_values(by='year', ascending=True)
+    df = df[STANDARD_COLS]
+    df.to_csv(file_path, index=False)
+    print(f"✅ {stock_id} 的 {year} 年 [殖利率] 資料已成功更新至 historical_valuation.csv！\n")
 
 # ================= 主程式選單 =================
 if __name__ == "__main__":
