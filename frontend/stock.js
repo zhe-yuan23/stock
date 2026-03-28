@@ -245,6 +245,111 @@ async function loadDetail() {
         : `${arrow}  ${v.stock_name} 目前股價 (${fmt(v.current_price, 2)} 元) 高於基本面推估價 (${fmt(v.est_fair_price, 2)} 元)，屬於相對偏貴區間。`;
     }
 
+    // ── Price Band Section ──
+    const bandSection = document.createElement('div');
+    bandSection.innerHTML = `
+      <div class="section-header" style="margin-top:20px;">
+        <div class="section-title">📐 本益比／殖利率區間估價</div>
+        <div class="section-line"></div>
+      </div>
+    `;
+    $('content').appendChild(bandSection);
+
+    if (v && v.band_low !== undefined) {
+      const price = v.current_price ?? 0;
+      const low   = v.band_low;
+      const mid   = v.band_mid;
+      const high  = v.band_high;
+
+      // Determine zone
+      let zoneLabel = '', zoneColor = 'var(--muted2)';
+      if (price <= mid) {
+        zoneLabel = '▼ 買進區間（低價～中間價）';
+        zoneColor = 'var(--green)';
+      } else if (price <= high) {
+        zoneLabel = '◆ 觀察區間（中間價～高價）';
+        zoneColor = 'var(--orange)';
+      } else {
+        zoneLabel = '▲ 賣出區間（高價以上）';
+        zoneColor = 'var(--red)';
+      }
+
+      // Build gauge bar — clamp price position between 0–100% across low→high range
+      const range = high - low || 1;
+      const pct = Math.min(100, Math.max(0, ((price - low) / range) * 100));
+      const midPct = 50;
+
+      const bandWrap = document.createElement('div');
+      bandWrap.className = 'fade-in';
+      bandWrap.innerHTML = `
+        <div class="metrics-grid" style="margin-bottom:12px;">
+          <div class="metric-card">
+            <div class="metric-label">近7年本益比最低均值</div>
+            <div class="metric-value">${fmt(v.avg_7yr_low_pe, 2)} 倍</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">近7年本益比最高均值</div>
+            <div class="metric-value">${fmt(v.avg_7yr_high_pe, 2)} 倍</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">近7年殖利率區間</div>
+            <div class="metric-value">${fmt(v.min_7yr_yield, 2)}% ～ ${fmt(v.max_7yr_yield, 2)}%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">本益比低估價</div>
+            <div class="metric-value" style="color:var(--green)">${fmt(v.pe_low_price, 2)} 元</div>
+            <div class="metric-help">EPS × 近7年最低本益比均值</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">殖利率低估價</div>
+            <div class="metric-value" style="color:var(--green)">${fmt(v.yield_low_price, 2)} 元</div>
+            <div class="metric-help">預估股利 ÷ 近7年最高殖利率</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label" style="color:var(--green);font-weight:700;">▶ 低價（買進參考）</div>
+            <div class="metric-value" style="color:var(--green);font-size:24px;">${fmt(low, 2)} 元</div>
+            <div class="metric-help">低本益比價 vs 高殖利率價 取高</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">本益比高估價</div>
+            <div class="metric-value" style="color:var(--red)">${fmt(v.pe_high_price, 2)} 元</div>
+            <div class="metric-help">EPS × 近7年最高本益比均值</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">殖利率高估價</div>
+            <div class="metric-value" style="color:var(--red)">${fmt(v.yield_high_price, 2)} 元</div>
+            <div class="metric-help">預估股利 ÷ 近7年最低殖利率</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label" style="color:var(--red);font-weight:700;">▶ 高價（賣出參考）</div>
+            <div class="metric-value" style="color:var(--red);font-size:24px;">${fmt(high, 2)} 元</div>
+            <div class="metric-help">高本益比價 vs 低殖利率價 取低</div>
+          </div>
+        </div>
+
+        <!-- Gauge bar -->
+        <div class="panel" style="margin-bottom:10px;">
+          <div class="panel-title">股價位置</div>
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:6px;">
+            <span style="color:var(--green)">低價 ${fmt(low, 2)}</span>
+            <span style="color:var(--gold)">中間價 ${fmt(mid, 2)}</span>
+            <span style="color:var(--red)">高價 ${fmt(high, 2)}</span>
+          </div>
+          <div style="position:relative;height:14px;background:linear-gradient(90deg,rgba(0,230,118,0.25),rgba(255,152,0,0.25),rgba(255,61,90,0.25));border-radius:7px;border:1px solid var(--border2);">
+            <!-- mid marker -->
+            <div style="position:absolute;left:${midPct}%;top:0;bottom:0;width:1px;background:var(--gold);opacity:0.6;"></div>
+            <!-- price marker -->
+            <div style="position:absolute;left:${pct}%;transform:translateX(-50%);top:-4px;width:8px;height:22px;background:var(--accent);border-radius:3px;box-shadow:0 0 8px rgba(0,212,255,0.6);"></div>
+          </div>
+          <div style="margin-top:10px;font-family:var(--mono);font-size:13px;font-weight:700;color:${zoneColor};">${zoneLabel}</div>
+          <div style="margin-top:4px;font-family:var(--mono);font-size:11px;color:var(--muted);">
+            目前股價 <span style="color:var(--accent)">${fmt(price, 2)} 元</span>，中間價 <span style="color:var(--gold)">${fmt(mid, 2)} 元</span>
+          </div>
+        </div>
+      `;
+      $('content').appendChild(bandWrap);
+    }
+
     $('loading').style.display = 'none';
     $('content').style.display = 'block';
 

@@ -174,6 +174,9 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "latest_month_number": None,
                     "price_volatility": None,
                     "current_price": None,
+                    "band_low": None,
+                    "band_mid": None,
+                    "band_high": None,
                     "is_latest": False,
                     "has_data": False,
                 }
@@ -186,10 +189,16 @@ def get_stocks_summary() -> Dict[str, Any]:
         # Estimation + pricing info (may fail if manual files are incomplete).
         price_volatility = None
         current_price = None
+        band_low = None
+        band_mid = None
+        band_high = None
         try:
             valuation_result = calculate_valuation(sid)
             price_volatility = valuation_result.get("price_volatility")
             current_price = valuation_result.get("current_price")
+            band_low = valuation_result.get("band_low")
+            band_mid = valuation_result.get("band_mid")
+            band_high = valuation_result.get("band_high")
         except Exception:
             pass
 
@@ -220,6 +229,9 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "latest_month_number": last_month_num,
                     "price_volatility": price_volatility,
                     "current_price": current_price,
+                    "band_low": band_low,
+                    "band_mid": band_mid,
+                    "band_high": band_high,
                     "is_latest": False,
                     "has_data": revenue_achieve_rate is not None,
                 }
@@ -235,6 +247,9 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "latest_month_number": None,
                     "price_volatility": price_volatility,
                     "current_price": current_price,
+                    "band_low": band_low,
+                    "band_mid": band_mid,
+                    "band_high": band_high,
                     "is_latest": False,
                     "has_data": False,
                 }

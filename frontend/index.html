@@ -335,6 +335,7 @@
       justify-content: space-between;
       gap: 6px;
       flex-shrink: 0;
+      width: 90px;
     }
 
     .price-label {
@@ -490,6 +491,43 @@
     .stat-value.red { color: var(--red); }
     .stat-value.accent { color: var(--accent); }
 
+    /* ── BAND BAR ── */
+    .band-bar-wrap {
+      width: 100%;
+      padding: 2px 0;
+      cursor: default;
+      align-self: stretch;
+    }
+
+    .band-bar-track {
+      position: relative;
+      height: 5px;
+      border-radius: 3px;
+      background: linear-gradient(90deg,
+        rgba(0,230,118,0.3),
+        rgba(255,152,0,0.3),
+        rgba(255,61,90,0.3));
+      border: 1px solid var(--border2);
+    }
+
+    .band-bar-mid {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 1px;
+      background: rgba(255,215,64,0.5);
+      transform: translateX(-50%);
+    }
+
+    .band-bar-marker {
+      position: absolute;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      border: 1px solid var(--bg);
+    }
+
     @media (max-width: 560px) {
       .stats-bar { flex-wrap: wrap; }
       .stat-item { flex: 1 1 45%; }
@@ -519,7 +557,7 @@
   </div>
   <div class="toolbar-right">
     <button class="sort-btn active" id="sortAchieve" onclick="sortBy('achieve')">達成率↓</button>
-    <button class="sort-btn" id="sortPrice" onclick="sortBy('price')">股價</button>
+    <button class="sort-btn" id="sortPrice" onclick="sortBy('price')">股價↓</button>
     <button class="sort-btn" id="sortVolatility" onclick="sortBy('vol')">波動位階↓</button>
   </div>
 </div>

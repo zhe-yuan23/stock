@@ -107,6 +107,45 @@ function buildCard(item, index) {
   const statusClass = item.is_latest ? 'latest' : 'pending';
   const statusText = item.is_latest ? '▲ 最新月份' : '◌ 待更新';
 
+  // ── Band gauge bar ──
+  const low   = item.band_low;
+  const mid   = item.band_mid;
+  const high  = item.band_high;
+  const price = item.current_price;
+  const vol_num = vol !== null && vol !== undefined ? Number(vol) : null;
+  let bandBarHtml = '';
+
+  if (low != null && mid != null && high != null && price != null) {
+    // Full band data available
+    const range = high - low || 1;
+    const pct = Math.min(100, Math.max(0, ((price - low) / range) * 100));
+    let zoneColor = 'var(--muted)';
+    if (price <= mid)       zoneColor = 'var(--green)';
+    else if (price <= high) zoneColor = 'var(--orange)';
+    else                    zoneColor = 'var(--red)';
+    bandBarHtml = `
+      <div class="band-bar-wrap" title="低 ${fmt(low,1)} ／ 中 ${fmt(mid,1)} ／ 高 ${fmt(high,1)}">
+        <div class="band-bar-track">
+          <div class="band-bar-mid" style="left:50%"></div>
+          <div class="band-bar-marker" style="left:${pct}%;background:${zoneColor};box-shadow:0 0 5px ${zoneColor};"></div>
+        </div>
+      </div>`;
+  } else if (vol_num !== null) {
+    // Fallback: use price_volatility (100% = fair price midpoint, range 50–150%)
+    const pct = Math.min(100, Math.max(0, ((vol_num - 50) / 100) * 100));
+    let zoneColor = 'var(--muted)';
+    if (vol_num < 100)       zoneColor = 'var(--green)';
+    else if (vol_num < 120)  zoneColor = 'var(--orange)';
+    else                     zoneColor = 'var(--red)';
+    bandBarHtml = `
+      <div class="band-bar-wrap" title="波動位階 ${fmt(vol_num,1)}%（基本面估價=100%）">
+        <div class="band-bar-track">
+          <div class="band-bar-mid" style="left:50%"></div>
+          <div class="band-bar-marker" style="left:${pct}%;background:${zoneColor};box-shadow:0 0 5px ${zoneColor};"></div>
+        </div>
+      </div>`;
+  }
+
   const card = document.createElement('div');
   card.className = `card ${cardBgClass(vol)}`;
   card.style.animationDelay = `${index * 40}ms`;
@@ -133,6 +172,7 @@ function buildCard(item, index) {
           <div class="volatility-label">波動位階</div>
           <div class="volatility-value">${volDisplay}</div>
         </div>
+        ${bandBarHtml}
         <button class="detail-btn" data-sid="${item.stock_id}">DETAIL →</button>
       </div>
     </div>

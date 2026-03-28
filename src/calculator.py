@@ -26,6 +26,7 @@ def calculate_valuation(stock_id):
         df_monthly_eps = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_monthly_eps.csv"))
         df_div = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_dividend_history.csv"))
         df_3yr_yield = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_3yr_yield.csv"))
+        df_hist_val = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_historical_valuation.csv"))
 
         # 🔍 2. 提取最新數值
         current_price = df_price.iloc[-1]['price']
@@ -64,6 +65,26 @@ def calculate_valuation(stock_id):
         est_current_yield = (est_dividend / current_price) * 100
         price_volatility = (current_price / est_fair_price) * 100
 
+        # === 📊 本益比／殖利率區間估價（近7年歷史資料） ===
+        df_hv = df_hist_val.tail(7).copy()
+        avg_7yr_low_pe   = float(df_hv['lowest_pe'].mean())
+        avg_7yr_high_pe  = float(df_hv['highest_pe'].mean())
+        # 過濾掉 annual_yield_pct == 0 的年份（該年未配息，不納入殖利率計算）
+        df_hv_yield = df_hv[df_hv['annual_yield_pct'] > 0]
+        max_7yr_yield = float(df_hv_yield['annual_yield_pct'].max()) / 100 if not df_hv_yield.empty else 0.0
+        min_7yr_yield = float(df_hv_yield['annual_yield_pct'].min()) / 100 if not df_hv_yield.empty else 0.0
+
+        pe_low_price     = est_eps * avg_7yr_low_pe
+        pe_high_price    = est_eps * avg_7yr_high_pe
+        yield_low_price  = est_dividend / max_7yr_yield if max_7yr_yield > 0 else None
+        yield_high_price = est_dividend / min_7yr_yield if min_7yr_yield > 0 else None
+
+        # 低價 = 低本益比價 vs 高殖利率價 → 取高
+        band_low  = max(pe_low_price, yield_low_price) if yield_low_price is not None else pe_low_price
+        # 高價 = 高本益比價 vs 低殖利率價 → 取低
+        band_high = min(pe_high_price, yield_high_price) if yield_high_price is not None else pe_high_price
+        band_mid  = (band_low + band_high) / 2
+
         return {
             "stock_id": stock_id,
             "stock_name": stock_name,
@@ -90,6 +111,18 @@ def calculate_valuation(stock_id):
             "est_current_yield": est_current_yield,
             "price_volatility": price_volatility,
             "is_undervalued": current_price < est_fair_price,
+            # 本益比／殖利率區間估價
+            "avg_7yr_low_pe": avg_7yr_low_pe,
+            "avg_7yr_high_pe": avg_7yr_high_pe,
+            "max_7yr_yield": max_7yr_yield * 100,
+            "min_7yr_yield": min_7yr_yield * 100,
+            "pe_low_price": pe_low_price,
+            "pe_high_price": pe_high_price,
+            "yield_low_price": yield_low_price,
+            "yield_high_price": yield_high_price,
+            "band_low": band_low,
+            "band_mid": band_mid,
+            "band_high": band_high,
         }
 
     except Exception as e:
