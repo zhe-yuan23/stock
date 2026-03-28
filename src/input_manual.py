@@ -211,8 +211,8 @@ def input_historical_pe():
     os.makedirs(stock_dir, exist_ok=True)
     file_path = os.path.join(stock_dir, f"{stock_id}_historical_valuation.csv")
 
-    # 🌟 強制規範標準欄位順序
-    STANDARD_COLS = ['year', 'stock_id', 'lowest_pe', 'highest_pe', 'lowest_yield_pct', 'highest_yield_pct']
+    # 🌟 欄位修正：殖利率只保留 annual_yield_pct 一個欄位
+    STANDARD_COLS = ['year', 'stock_id', 'lowest_pe', 'highest_pe', 'annual_yield_pct']
 
     def get_float_input(prompt):
         while True:
@@ -225,32 +225,27 @@ def input_historical_pe():
     lowest_pe = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最低本益比]: ")
     highest_pe = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最高本益比]: ")
 
-    # 讀取或建立 DataFrame
     if os.path.exists(file_path):
         df = pd.read_csv(file_path)
         df['year'] = df['year'].astype(str)
         df['stock_id'] = df['stock_id'].astype(str)
     else:
-        # 檔案不存在時，建立一個帶有標準欄位的空表格
         df = pd.DataFrame(columns=STANDARD_COLS)
 
-    # 檢查該年份是否已經存在
     if year in df['year'].values:
         df.loc[df['year'] == year, 'lowest_pe'] = lowest_pe
         df.loc[df['year'] == year, 'highest_pe'] = highest_pe
     else:
-        # 新增一筆資料 (只填本益比，殖利率先留空)
+        # 新增時，殖利率欄位先補空值
         new_row = pd.DataFrame([{
             "year": year, 
             "stock_id": stock_id, 
             "lowest_pe": lowest_pe, 
             "highest_pe": highest_pe,
-            "lowest_yield_pct": None,
-            "highest_yield_pct": None
+            "annual_yield_pct": None
         }])
         df = pd.concat([df, new_row], ignore_index=True)
 
-    # 🌟 存檔前：重新排序年份、並「強制重排欄位順序」
     df = df.sort_values(by='year', ascending=True)
     df = df[STANDARD_COLS]
     df.to_csv(file_path, index=False)
@@ -258,8 +253,8 @@ def input_historical_pe():
 
 
 def input_historical_yield():
-    """輸入歷年最高/最低殖利率"""
-    print("\n--- 📝 進入 [歷年殖利率極值] 輸入模式 ---")
+    """輸入歷年殖利率"""
+    print("\n--- 📝 進入 [歷年年殖利率] 輸入模式 ---")
     
     year = input("請輸入資料年度 (例如 2023): ").strip()
     stock_id = input("請輸入股票代號 (例如 2881): ").strip()
@@ -268,8 +263,8 @@ def input_historical_yield():
     os.makedirs(stock_dir, exist_ok=True)
     file_path = os.path.join(stock_dir, f"{stock_id}_historical_valuation.csv")
 
-    # 🌟 強制規範標準欄位順序
-    STANDARD_COLS = ['year', 'stock_id', 'lowest_pe', 'highest_pe', 'lowest_yield_pct', 'highest_yield_pct']
+    # 🌟 欄位修正：殖利率只保留 annual_yield_pct 一個欄位
+    STANDARD_COLS = ['year', 'stock_id', 'lowest_pe', 'highest_pe', 'annual_yield_pct']
 
     def get_float_input(prompt):
         while True:
@@ -279,35 +274,29 @@ def input_historical_yield():
             except ValueError:
                 print("❌ 只能輸入數字喔！請重試。")
 
-    lowest_yield = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最低殖利率] (%): ")
-    highest_yield = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [最高殖利率] (%): ")
+    # 🌟 改為只詢問當年度單一殖利率
+    annual_yield = get_float_input(f"請輸入 {stock_id} 在 {year} 年的 [年殖利率] (%): ")
 
-    # 讀取或建立 DataFrame
     if os.path.exists(file_path):
         df = pd.read_csv(file_path)
         df['year'] = df['year'].astype(str)
         df['stock_id'] = df['stock_id'].astype(str)
     else:
-        # 檔案不存在時，建立一個帶有標準欄位的空表格
         df = pd.DataFrame(columns=STANDARD_COLS)
 
-    # 檢查該年份是否已經存在
     if year in df['year'].values:
-        df.loc[df['year'] == year, 'lowest_yield_pct'] = lowest_yield
-        df.loc[df['year'] == year, 'highest_yield_pct'] = highest_yield
+        df.loc[df['year'] == year, 'annual_yield_pct'] = annual_yield
     else:
-        # 新增一筆資料 (只填殖利率，本益比先留空)
+        # 新增時，本益比欄位先補空值
         new_row = pd.DataFrame([{
             "year": year, 
             "stock_id": stock_id, 
             "lowest_pe": None, 
             "highest_pe": None,
-            "lowest_yield_pct": lowest_yield,
-            "highest_yield_pct": highest_yield
+            "annual_yield_pct": annual_yield
         }])
         df = pd.concat([df, new_row], ignore_index=True)
 
-    # 🌟 存檔前：重新排序年份、並「強制重排欄位順序」
     df = df.sort_values(by='year', ascending=True)
     df = df[STANDARD_COLS]
     df.to_csv(file_path, index=False)
