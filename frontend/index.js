@@ -173,16 +173,9 @@ function buildCard(item, index) {
           <div class="volatility-value">${volDisplay}</div>
         </div>
         ${bandBarHtml}
-        <button class="detail-btn" data-sid="${item.stock_id}">DETAIL →</button>
       </div>
     </div>
   `;
-
-  card.querySelector('.detail-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const sid = e.currentTarget.getAttribute('data-sid');
-    window.location.href = `stock.html?stock_id=${encodeURIComponent(sid)}`;
-  });
 
   card.addEventListener('click', () => {
     window.location.href = `stock.html?stock_id=${encodeURIComponent(item.stock_id)}`;

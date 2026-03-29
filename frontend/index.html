@@ -266,6 +266,7 @@
       display: flex;
       justify-content: space-between;
       gap: 10px;
+      align-items: stretch;
     }
 
     .card-left { flex: 1; min-width: 0; }
@@ -300,7 +301,7 @@
 
     .achieve-value {
       font-family: var(--mono);
-      font-size: 26px;
+      font-size: 20px;
       font-weight: 700;
       line-height: 1;
       letter-spacing: -0.02em;
@@ -332,10 +333,10 @@
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 6px;
       flex-shrink: 0;
-      width: 90px;
+      width: 110px;
     }
 
     .price-label {
@@ -348,11 +349,12 @@
 
     .price-value {
       font-family: var(--mono);
-      font-size: 22px;
+      font-size: 30px;
       font-weight: 700;
       color: var(--accent);
       letter-spacing: -0.02em;
       text-align: right;
+      white-space: nowrap;
     }
 
     .price-unit {
@@ -378,28 +380,6 @@
       font-size: 13px;
       font-weight: 700;
       color: var(--gold);
-    }
-
-    .detail-btn {
-      background: transparent;
-      border: 1px solid var(--border2);
-      border-radius: 4px;
-      color: var(--muted2);
-      font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      padding: 5px 10px;
-      cursor: pointer;
-      text-transform: uppercase;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
-
-    .detail-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: rgba(0,212,255,0.06);
     }
 
     /* ── LOADING ── */
@@ -497,6 +477,7 @@
       padding: 2px 0;
       cursor: default;
       align-self: stretch;
+      margin-top: auto;
     }
 
     .band-bar-track {
@@ -557,7 +538,7 @@
   </div>
   <div class="toolbar-right">
     <button class="sort-btn active" id="sortAchieve" onclick="sortBy('achieve')">達成率↓</button>
-    <button class="sort-btn" id="sortPrice" onclick="sortBy('price')">股價↓</button>
+    <button class="sort-btn" id="sortPrice" onclick="sortBy('price')">股價</button>
     <button class="sort-btn" id="sortVolatility" onclick="sortBy('vol')">波動位階↓</button>
   </div>
 </div>
