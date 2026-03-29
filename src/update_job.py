@@ -4,7 +4,7 @@ import update_daily_data
 from datetime import datetime
 
 # 統一設定股票清單與存檔資料夾
-stock_ids = ["2881", "2882", "2883", "2884", "2885", "2887", "2890", "2891", "2892"]
+stock_ids = ["2330", "2881", "2882", "2883", "2884", "2885", "2887", "2890", "2891", "2892"]
 base_dir = "data"
 
 print(f"=== 🚀 開始執行台股排程總任務 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}) ===")
