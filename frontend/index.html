@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>台股營收追蹤</title>
+  <title>睡得著的投資</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <style>
@@ -78,11 +80,9 @@
     }
 
     .logo-icon {
-      width: 28px;
-      height: 28px;
-      background: var(--accent);
-      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
     }
 
     .logo-text {
@@ -519,8 +519,18 @@
 
 <header>
   <div class="logo-block">
-    <div class="logo-icon"></div>
-    <div class="logo-text">TWSTOCK</div>
+    <div class="logo-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 64" width="30" height="34">
+        <polygon points="28,2 52,16 52,44 28,58 4,44 4,16" fill="#110e00" stroke="#ffd740" stroke-width="2.5"/>
+        <polygon points="28,8 47,19 47,41 28,53 9,41 9,19" fill="none" stroke="#ffd740" stroke-width="0.8" opacity="0.35"/>
+        <circle cx="28" cy="30" r="14" fill="#ffd740"/>
+        <circle cx="35" cy="23" r="11" fill="#110e00"/>
+        <circle cx="44" cy="14" r="1.8" fill="#ffd740" opacity="0.7"/>
+        <circle cx="49" cy="21" r="1.2" fill="#ffd740" opacity="0.5"/>
+        <circle cx="42" cy="19" r="1.0" fill="#ffd740" opacity="0.4"/>
+      </svg>
+    </div>
+    <div class="logo-text">SLEEP WELL INVEST</div>
   </div>
   <nav class="header-nav">
     <div class="nav-item active">OVERVIEW</div>
