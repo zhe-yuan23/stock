@@ -1,9 +1,12 @@
 import sys
+import urllib.request
+import urllib.parse
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -382,3 +385,43 @@ def get_stock_detail(stock_id: str) -> Dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/api/news/{stock_id}")
+def get_stock_news(stock_id: str, name: str = Query(default="")) -> Dict[str, Any]:
+    query = f"{stock_id} {name}".strip()
+    rss_url = (
+        "https://news.google.com/rss/search?"
+        + urllib.parse.urlencode({"q": query, "hl": "zh-TW", "gl": "TW", "ceid": "TW:zh-Hant"})
+    )
+    try:
+        req = urllib.request.Request(
+            rss_url,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; StockBot/1.0)"},
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            xml_bytes = resp.read()
+
+        root = ET.fromstring(xml_bytes)
+        channel = root.find("channel")
+        if channel is None:
+            return {"items": []}
+
+        items = []
+        for item in channel.findall("item")[:10]:
+            title = item.findtext("title") or ""
+            link  = item.findtext("link") or ""
+            pub   = item.findtext("pubDate") or ""
+            source_el = item.find("source")
+            source = source_el.text if source_el is not None else ""
+
+            items.append({
+                "title":   title,
+                "link":    link,
+                "pubDate": pub,
+                "source":  source,
+            })
+
+        return {"items": items}
+
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch news: {e}")

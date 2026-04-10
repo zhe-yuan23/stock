@@ -1,5 +1,5 @@
-const DEFAULT_API_BASE = "";
-// const DEFAULT_API_BASE = "http://localhost:8000";
+// const DEFAULT_API_BASE = "";
+const DEFAULT_API_BASE = "http://localhost:8000";
 const API_KEY = "apiBase";
 
 function getApiBase() {

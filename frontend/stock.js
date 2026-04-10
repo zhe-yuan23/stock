@@ -1,5 +1,5 @@
-const DEFAULT_API_BASE = "";
-// const DEFAULT_API_BASE = "http://localhost:8000";
+// const DEFAULT_API_BASE = "";
+const DEFAULT_API_BASE = "http://localhost:8000";
 const API_KEY = "apiBase";
 
 function getApiBase() {
@@ -75,6 +75,9 @@ async function loadDetail() {
 
     $('headerStockId').textContent = stockId;
     $('headerStockName').textContent = stockName;
+
+    // ── News（早點觸發，不等其他資料）──
+    loadNews(stockId, stockName);
 
     // ── Hero strip ──
     const v = data.valuation;
@@ -360,3 +363,61 @@ async function loadDetail() {
 }
 
 loadDetail();
+
+// ── Tab switch ──
+function switchTab(tab) {
+  const isNews = tab === 'news';
+  $('tabPaneNews').style.display  = isNews ? 'block' : 'none';
+  $('tabPaneTable').style.display = isNews ? 'none'  : 'block';
+  $('tabNews').classList.toggle('active', isNews);
+  $('tabTable').classList.toggle('active', !isNews);
+}
+
+// ── News ──
+async function loadNews(stockId, stockName) {
+  const newsList = $('newsList');
+
+  try {
+    const apiBase = getApiBase();
+    const params = stockName ? `?name=${encodeURIComponent(stockName)}` : '';
+    const res = await fetch(`${apiBase}/api/news/${encodeURIComponent(stockId)}${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (!data.items || data.items.length === 0) {
+      newsList.innerHTML = '<div class="news-error">目前無相關新聞</div>';
+      return;
+    }
+
+    newsList.innerHTML = '';
+    data.items.forEach(item => {
+      const pubDate = new Date(item.pubDate);
+      const diffMs = Date.now() - pubDate.getTime();
+      const diffHr = Math.floor(diffMs / 3600000);
+      const diffDay = Math.floor(diffMs / 86400000);
+      let timeStr;
+      if (isNaN(pubDate.getTime())) timeStr = '';
+      else if (diffHr < 1)          timeStr = '剛剛';
+      else if (diffHr < 24)         timeStr = `${diffHr} 小時前`;
+      else if (diffDay < 7)         timeStr = `${diffDay} 天前`;
+      else                          timeStr = pubDate.toLocaleDateString('zh-TW');
+
+      const a = document.createElement('a');
+      a.className = 'news-item fade-in';
+      a.href = item.link;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.innerHTML = `
+        <div class="news-title">${item.title}</div>
+        <div class="news-meta">
+          <span class="news-source">${item.source || ''}</span>
+          <span>${timeStr}</span>
+        </div>
+      `;
+      newsList.appendChild(a);
+    });
+
+  } catch (err) {
+    newsList.innerHTML = `<div class="news-error">新聞載入失敗：${err.message}</div>`;
+  }
+}
