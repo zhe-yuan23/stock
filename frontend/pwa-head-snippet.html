@@ -1,0 +1,24 @@
+<!-- ══════════════════════════════════════════════
+  貼進 index.html 和 stock.html 的 <head> 區塊內
+  （建議放在原有 <link rel="icon"> 那幾行後面）
+══════════════════════════════════════════════ -->
+
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="睡得著">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#080c10">
+
+
+<!-- ══════════════════════════════════════════════
+  貼進 index.html 和 stock.html 的 </body> 結束前
+══════════════════════════════════════════════ -->
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js');
+    });
+  }
+</script>
