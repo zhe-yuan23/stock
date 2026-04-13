@@ -12,6 +12,34 @@ function getQueryParam(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
 
+// ── Trading Hours (Taiwan time, Mon–Fri 09:00 ~ next day 08:00) ──
+function isTradingHours() {
+  const param = new URLSearchParams(window.location.search).get('live');
+  if (param === '1') return true;
+  if (param === '0') return false;
+  const now = new Date();
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const day = tw.getDay();
+  const minutes = tw.getHours() * 60 + tw.getMinutes();
+  // 週一～五 09:00 以後，或 週二～六 08:00 以前（即前一個交易日收盤後到隔天更新前）
+  const isTradingDay = day >= 1 && day <= 5;
+  const isNextMorning = day >= 2 && day <= 6 && minutes < 8 * 60;
+  return (isTradingDay && minutes >= 9 * 60) || isNextMorning;
+}
+
+// ── Fetch live price via backend proxy ──
+async function fetchLivePrice(stockId) {
+  try {
+    const apiBase = getApiBase();
+    const res = await fetch(`${apiBase}/api/live-price/${encodeURIComponent(stockId)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.price ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Clock ──
 function updateClock() {
   const now = new Date();
@@ -356,6 +384,19 @@ async function loadDetail() {
     $('loading').style.display = 'none';
     $('content').style.display = 'block';
 
+    // Store for auto update
+    _detailValuation = v;
+    _detailData = data;
+
+    // ── Live price overlay (trading hours only) ──
+    if (isTradingHours()) {
+      const stockId = getQueryParam('stock_id');
+      const livePrice = await fetchLivePrice(stockId);
+      if (livePrice !== null) {
+        applyLivePriceToDetail(livePrice, v, data);
+      }
+    }
+
   } catch (err) {
     console.error(err);
     $('loading').innerHTML = `<div class="loading-text" style="color:var(--red);">ERROR: ${err?.message || err}</div>`;
@@ -363,6 +404,29 @@ async function loadDetail() {
 }
 
 loadDetail();
+
+// ── Auto update every 30 min during 09:00–14:00 ──
+function isAutoUpdateHours() {
+  const now = new Date();
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const day = tw.getDay();
+  if (day === 0 || day === 6) return false;
+  const minutes = tw.getHours() * 60 + tw.getMinutes();
+  return minutes >= 9 * 60 && minutes < 14 * 60;
+}
+
+let _detailValuation = null;
+let _detailData = null;
+
+setInterval(async () => {
+  if (!isAutoUpdateHours()) return;
+  const stockId = getQueryParam('stock_id');
+  if (!stockId || !_detailValuation) return;
+  const livePrice = await fetchLivePrice(stockId);
+  if (livePrice !== null) {
+    applyLivePriceToDetail(livePrice, _detailValuation, _detailData);
+  }
+}, 60 * 60 * 1000);  //每 60 分鐘執行一次（60 × 60 × 1000 毫秒）
 
 // ── Tab switch ──
 function switchTab(tab) {
@@ -373,7 +437,147 @@ function switchTab(tab) {
   $('tabTable').classList.toggle('active', !isNews);
 }
 
-// ── News ──
+// ── Pull to Refresh ──
+(function initPullToRefresh() {
+  const THRESHOLD = 80;
+  let startY = 0;
+  let pulling = false;
+  const indicator = document.getElementById('pullIndicator');
+
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const dist = Math.min(e.touches[0].clientY - startY, THRESHOLD * 1.5);
+    if (dist <= 0) return;
+    indicator.style.height = `${Math.min(dist * 0.5, 44)}px`;
+    if (dist >= THRESHOLD) {
+      indicator.textContent = '↑ 放開更新';
+      indicator.classList.add('ready');
+    } else {
+      indicator.textContent = '↓ 下拉更新價格';
+      indicator.classList.remove('ready');
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', async e => {
+    if (!pulling) return;
+    pulling = false;
+    const dist = e.changedTouches[0].clientY - startY;
+    indicator.style.height = '0';
+    indicator.classList.remove('ready');
+    indicator.textContent = '↓ 下拉更新價格';
+    if (dist >= THRESHOLD && isTradingHours()) {
+      indicator.style.height = '44px';
+      indicator.textContent = '更新中...';
+      const stockId = getQueryParam('stock_id');
+      const livePrice = await fetchLivePrice(stockId);
+      if (livePrice !== null && _detailValuation) {
+        applyLivePriceToDetail(livePrice, _detailValuation, _detailData);
+      }
+      indicator.style.height = '0';
+    }
+  }, { passive: true });
+})();
+
+// ── Apply live price to stock detail page ──
+function applyLivePriceToDetail(livePrice, v, data) {
+  // 1. Hero strip price + label
+  const heroPrice = $('heroPrice');
+  if (heroPrice) {
+    heroPrice.innerHTML = `${fmt(livePrice, 2)}<span class="hero-price-unit"> 元</span>`;
+  }
+  const label = $('heroPriceLabel');
+  if (label) label.textContent = 'LIVE PRICE';
+
+  // 2. Recalculate derived values with live price
+  const fairPrice = v?.est_fair_price;
+  const newVol = fairPrice ? (livePrice / fairPrice) * 100 : null;
+
+  // Update hero volatility
+  if (newVol !== null) {
+    const heroVol = $('heroVolatility');
+    if (heroVol) heroVol.textContent = `${fmt(newVol, 2)} %`;
+  }
+
+  // Update est_current_yield with live price
+  const estDiv = v?.est_dividend;
+  const newYield = estDiv ? (estDiv / livePrice) * 100 : null;
+  if (newYield !== null) {
+    const heroYield = $('heroYield');
+    if (heroYield) heroYield.textContent = `${fmt(newYield, 2)} %`;
+  }
+
+  // 3. Update valuation metric cards
+  document.querySelectorAll('.metric-card').forEach(card => {
+    const label = card.querySelector('.metric-label')?.textContent?.trim();
+    const valueEl = card.querySelector('.metric-value');
+    if (!valueEl) return;
+    if (label === '目前股價') {
+      valueEl.textContent = `${fmt(livePrice, 2)} 元`;
+    } else if (label === '推估現價殖利率' && newYield !== null) {
+      valueEl.textContent = `${fmt(newYield, 2)} %`;
+    } else if (label === '股價波動位階' && newVol !== null) {
+      valueEl.textContent = `${fmt(newVol, 2)} %`;
+    }
+  });
+
+  // 4. Update conclusion banner
+  const conclusionEl = $('conclusion');
+  if (conclusionEl && fairPrice) {
+    const isUnder = livePrice < fairPrice;
+    conclusionEl.className = `conclusion ${isUnder ? 'success' : 'error'}`;
+    const arrow = isUnder ? '▼ UNDERVALUED' : '▲ OVERVALUED';
+    const stockName = v?.stock_name || '';
+    conclusionEl.textContent = isUnder
+      ? `${arrow}  ${stockName} 目前股價 (${fmt(livePrice, 2)} 元) 低於基本面推估價 (${fmt(fairPrice, 2)} 元)，屬於相對便宜區間。`
+      : `${arrow}  ${stockName} 目前股價 (${fmt(livePrice, 2)} 元) 高於基本面推估價 (${fmt(fairPrice, 2)} 元)，屬於相對偏貴區間。`;
+  }
+
+  // 5. Update gauge bar marker and zone label
+  const low = v?.band_low, mid = v?.band_mid, high = v?.band_high;
+  if (low != null && mid != null && high != null) {
+    const range = high - low || 1;
+    const pct = Math.min(100, Math.max(0, ((livePrice - low) / range) * 100));
+
+    let zoneLabel = '', zoneColor = 'var(--muted2)';
+    if (livePrice <= mid) {
+      zoneLabel = '▼ 買進區間（低價～中間價）';
+      zoneColor = 'var(--green)';
+    } else if (livePrice <= high) {
+      zoneLabel = '◆ 觀察區間（中間價～高價）';
+      zoneColor = 'var(--orange)';
+    } else {
+      zoneLabel = '▲ 賣出區間（高價以上）';
+      zoneColor = 'var(--red)';
+    }
+
+    // marker (blue rect in gauge bar)
+    const marker = document.querySelector('.panel [style*="background:var(--accent)"]');
+    if (marker) marker.style.left = `${pct}%`;
+
+    // zone label text
+    document.querySelectorAll('.panel [style*="font-weight:700"]').forEach(el => {
+      if (el.textContent.includes('區間')) {
+        el.style.color = zoneColor;
+        el.textContent = zoneLabel;
+      }
+    });
+
+    // price text under gauge
+    document.querySelectorAll('.panel [style*="font-size:11px"]').forEach(el => {
+      if (el.innerHTML.includes('目前股價')) {
+        el.innerHTML = `目前股價 <span style="color:var(--accent)">${fmt(livePrice, 2)} 元</span>，中間價 <span style="color:var(--gold)">${fmt(mid, 2)} 元</span>`;
+      }
+    });
+  }
+}
+
 async function loadNews(stockId, stockName) {
   const newsList = $('newsList');
 

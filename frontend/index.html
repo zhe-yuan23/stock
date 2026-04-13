@@ -436,6 +436,32 @@
       50% { opacity: 0.4; }
     }
 
+    /* ── PULL TO REFRESH ── */
+    #pullIndicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 0;
+      overflow: hidden;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted2);
+      letter-spacing: 0.1em;
+      transition: height 0.1s;
+      z-index: 200;
+    }
+
+    #pullIndicator.ready {
+      color: var(--accent);
+    }
+
     /* ── STATS BAR ── */
     .stats-bar {
       display: flex;
@@ -522,6 +548,7 @@
   </style>
 </head>
 <body>
+<div id="pullIndicator">↓ 下拉更新價格</div>
 
 <header>
   <div class="logo-block">

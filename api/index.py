@@ -180,6 +180,7 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "band_low": None,
                     "band_mid": None,
                     "band_high": None,
+                    "est_fair_price": None,
                     "is_latest": False,
                     "has_data": False,
                 }
@@ -195,6 +196,7 @@ def get_stocks_summary() -> Dict[str, Any]:
         band_low = None
         band_mid = None
         band_high = None
+        est_fair_price = None
         try:
             valuation_result = calculate_valuation(sid)
             price_volatility = valuation_result.get("price_volatility")
@@ -202,6 +204,7 @@ def get_stocks_summary() -> Dict[str, Any]:
             band_low = valuation_result.get("band_low")
             band_mid = valuation_result.get("band_mid")
             band_high = valuation_result.get("band_high")
+            est_fair_price = valuation_result.get("est_fair_price")
         except Exception:
             pass
 
@@ -235,6 +238,7 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "band_low": band_low,
                     "band_mid": band_mid,
                     "band_high": band_high,
+                    "est_fair_price": est_fair_price,
                     "is_latest": False,
                     "has_data": revenue_achieve_rate is not None,
                 }
@@ -253,6 +257,7 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "band_low": band_low,
                     "band_mid": band_mid,
                     "band_high": band_high,
+                    "est_fair_price": est_fair_price,
                     "is_latest": False,
                     "has_data": False,
                 }
@@ -384,6 +389,25 @@ def get_stock_detail(stock_id: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/live-price/{stock_id}")
+def get_live_price(stock_id: str) -> Dict[str, Any]:
+    """Proxy Yahoo Finance to avoid CORS issues in the browser."""
+    import json
+    symbol = f"{stock_id}.TW"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?interval=1m&range=1d"
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; StockBot/1.0)"},
+        )
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read())
+        price = data["chart"]["result"][0]["meta"]["regularMarketPrice"]
+        return {"stock_id": stock_id, "price": float(price)}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch live price: {e}")
 
 
 @app.get("/api/news/{stock_id}")

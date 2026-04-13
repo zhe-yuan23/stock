@@ -8,6 +8,44 @@ function getApiBase() {
 
 function $(id) { return document.getElementById(id); }
 
+// ── Trading Hours (Taiwan time, Mon–Fri 09:00 ~ next day 08:00) ──
+function isTradingHours() {
+  const param = new URLSearchParams(window.location.search).get('live');
+  if (param === '1') return true;
+  if (param === '0') return false;
+  const now = new Date();
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const day = tw.getDay();
+  const minutes = tw.getHours() * 60 + tw.getMinutes();
+  // 週一～五 09:00 以後，或 週二～六 08:00 以前（即前一個交易日收盤後到隔天更新前）
+  const isTradingDay = day >= 1 && day <= 5;
+  const isNextMorning = day >= 2 && day <= 6 && minutes < 8 * 60;
+  return (isTradingDay && minutes >= 9 * 60) || isNextMorning;
+}
+
+// ── Fetch live price via backend proxy ──
+async function fetchLivePrice(stockId) {
+  try {
+    const apiBase = getApiBase();
+    const res = await fetch(`${apiBase}/api/live-price/${encodeURIComponent(stockId)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.price ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Fetch all live prices at once ──
+async function fetchAllLivePrices(stockIds) {
+  const results = {};
+  await Promise.all(stockIds.map(async id => {
+    const price = await fetchLivePrice(id);
+    if (price !== null) results[id] = price;
+  }));
+  return results;
+}
+
 // ── Clock ──
 function updateClock() {
   const now = new Date();
@@ -51,6 +89,7 @@ function cardBgClass(vol) {
 // ── State ──
 let allItems = [];
 let currentSort = 'achieve';
+let lastLivePrices = {};
 
 function sortBy(key) {
   currentSort = key;
@@ -77,6 +116,11 @@ function sortBy(key) {
     return 0;
   });
   renderCards(sorted);
+
+  // Re-apply live prices if available
+  if (isTradingHours() && Object.keys(lastLivePrices).length > 0) {
+    applyLivePricesToCards(lastLivePrices, allItems);
+  }
 }
 
 // ── Stats bar ──
@@ -149,6 +193,7 @@ function buildCard(item, index) {
   const card = document.createElement('div');
   card.className = `card ${cardBgClass(vol)}`;
   card.style.animationDelay = `${index * 40}ms`;
+  card.dataset.stockId = item.stock_id;
 
   card.innerHTML = `
     <div class="card-accent-bar"></div>
@@ -166,11 +211,11 @@ function buildCard(item, index) {
       <div class="card-right">
         <div>
           <div class="price-label">LAST PRICE</div>
-          <div class="price-value">${priceDisplay}</div>
+          <div class="price-value card-price-value">${priceDisplay}</div>
         </div>
         <div class="volatility-wrap">
           <div class="volatility-label">波動位階</div>
-          <div class="volatility-value">${volDisplay}</div>
+          <div class="volatility-value card-vol-value">${volDisplay}</div>
         </div>
         ${bandBarHtml}
       </div>
@@ -222,6 +267,14 @@ async function loadSummary() {
     sortBy('achieve');
     $('loading').style.display = 'none';
 
+    // ── Live price overlay (trading hours only) ──
+    if (isTradingHours()) {
+      const stockIds = allItems.map(i => i.stock_id);
+      const livePrices = await fetchAllLivePrices(stockIds);
+      lastLivePrices = livePrices;
+      applyLivePricesToCards(livePrices, allItems);
+    }
+
   } catch (err) {
     console.error(err);
     $('loading').innerHTML = `<div class="loading-text" style="color:var(--red);">ERROR: ${err?.message || err}</div>`;
@@ -229,3 +282,112 @@ async function loadSummary() {
 }
 
 loadSummary();
+
+// ── Auto update every 30 min during 09:00–14:00 ──
+function isAutoUpdateHours() {
+  const now = new Date();
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const day = tw.getDay();
+  if (day === 0 || day === 6) return false;
+  const minutes = tw.getHours() * 60 + tw.getMinutes();
+  return minutes >= 9 * 60 && minutes < 14 * 60;
+}
+
+setInterval(async () => {
+  if (!isAutoUpdateHours()) return;
+  const stockIds = allItems.map(i => i.stock_id);
+  const livePrices = await fetchAllLivePrices(stockIds);
+  lastLivePrices = livePrices;
+  applyLivePricesToCards(livePrices, allItems);
+}, 30 * 60 * 1000);
+
+// ── Pull to Refresh ──
+(function initPullToRefresh() {
+  const THRESHOLD = 80;
+  let startY = 0;
+  let pulling = false;
+  const indicator = document.getElementById('pullIndicator');
+
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const dist = Math.min(e.touches[0].clientY - startY, THRESHOLD * 1.5);
+    if (dist <= 0) return;
+    indicator.style.height = `${Math.min(dist * 0.5, 44)}px`;
+    if (dist >= THRESHOLD) {
+      indicator.textContent = '↑ 放開更新';
+      indicator.classList.add('ready');
+    } else {
+      indicator.textContent = '↓ 下拉更新價格';
+      indicator.classList.remove('ready');
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', async e => {
+    if (!pulling) return;
+    pulling = false;
+    const dist = e.changedTouches[0].clientY - startY;
+    indicator.style.height = '0';
+    indicator.classList.remove('ready');
+    indicator.textContent = '↓ 下拉更新價格';
+    if (dist >= THRESHOLD && isTradingHours()) {
+      indicator.style.height = '44px';
+      indicator.textContent = '更新中...';
+      const stockIds = allItems.map(i => i.stock_id);
+      const livePrices = await fetchAllLivePrices(stockIds);
+      lastLivePrices = livePrices;
+      applyLivePricesToCards(livePrices, allItems);
+      indicator.style.height = '0';
+    }
+  }, { passive: true });
+})();
+function applyLivePricesToCards(livePrices, items) {
+  document.querySelectorAll('.card[data-stock-id]').forEach(card => {
+    const stockId = card.dataset.stockId;
+    const livePrice = livePrices[stockId];
+    if (livePrice == null) return;
+
+    // Update price label to LIVE PRICE
+    const priceLabel = card.querySelector('.price-label');
+    if (priceLabel) priceLabel.textContent = 'LIVE PRICE';
+
+    // Update price display
+    const priceEl = card.querySelector('.card-price-value');
+    if (priceEl) {
+      priceEl.innerHTML = `${fmt(livePrice, 2)}<span class="price-unit">元</span>`;
+    }
+
+    // Update volatility value and band bar if est_fair_price exists
+    const item = items.find(i => i.stock_id === stockId);
+    if (!item) return;
+
+    // Recalculate price_volatility with live price
+    const fairPrice = item.est_fair_price;
+    if (fairPrice) {
+      const newVol = (livePrice / fairPrice) * 100;
+      const volEl = card.querySelector('.card-vol-value');
+      if (volEl) volEl.textContent = `${fmt(newVol, 2)} %`;
+    }
+
+    // Update band bar marker position
+    const low = item.band_low, mid = item.band_mid, high = item.band_high;
+    const marker = card.querySelector('.band-bar-marker');
+    if (marker && low != null && mid != null && high != null) {
+      const range = high - low || 1;
+      const pct = Math.min(100, Math.max(0, ((livePrice - low) / range) * 100));
+      let zoneColor = 'var(--muted)';
+      if (livePrice <= mid)       zoneColor = 'var(--green)';
+      else if (livePrice <= high) zoneColor = 'var(--orange)';
+      else                        zoneColor = 'var(--red)';
+      marker.style.left = `${pct}%`;
+      marker.style.background = zoneColor;
+      marker.style.boxShadow = `0 0 5px ${zoneColor}`;
+    }
+  });
+}
