@@ -8,6 +8,10 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Response
+
+import difflib
+import re
 
 
 # Ensure we can import `src/*` when running on Zeabur or locally.
@@ -443,18 +447,78 @@ def get_live_price(stock_id: str) -> Dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Failed to fetch live price: {e}")
 
+import logging
+
+# 設定 logging，方便在 Vercel Function Log 中查看除錯訊息
+logger = logging.getLogger(__name__)
+
+
+def clean_title_for_compare(title: str) -> str:
+    """
+    清洗新聞標題，只保留核心主題部分，用來提升去重的準確度。
+    遇到 " - "、" | "、"_" 或 "(" 就從那裡截斷，只取前半段。
+    例如：「台積電法說會重點 - 財經新聞」→「台積電法說會重點」
+    """
+    parts = re.split(r'\s*[-|_|(]', title)
+    return parts[0].strip()
+
+
+def get_special_keywords(title: str) -> set:
+    """
+    從標題中擷取「有意義的英文關鍵字」（長度 > 4），轉小寫方便比對。
+    刻意過濾掉短字（如 AI、ETF、USD），避免這類通用詞彙造成誤判重複。
+    例如：「Apple 營收創高」→ {'apple'}，而非 {'apple', 'ai'} 這類雜訊。
+    """
+    return {w for w in re.findall(r'[a-zA-Z]+', title.lower()) if len(w) > 4}
+
 
 @app.get("/api/news/{stock_id}")
-def get_stock_news(stock_id: str, name: str = Query(default="")) -> Dict[str, Any]:
-    query = f"{stock_id} {name}".strip()
+def get_stock_news(
+    stock_id: str,
+    response: Response,                  # FastAPI 依賴注入，用來設定回應 Header（如快取）
+    name: str = Query(default=""),       # 可選的公司名稱，用來加強搜尋精準度
+    days: int = Query(default=14),       # 搜尋幾天內的新聞，預設 14 天
+) -> Dict[str, Any]:
+    """
+    透過 Google News RSS 抓取指定股票的相關新聞。
+    支援黑名單過濾（技術分析類雜訊）、基礎去重與進階相似度去重。
+    結果會由 Vercel Edge Cache 快取 5 分鐘，降低對 Google 的請求頻率。
+    """
+
+    # --- 1. 組合搜尋關鍵字 ---
+    # 如果有提供公司名稱，使用 OR 邏輯同時搜尋代號與名稱，提高召回率
+    if name:
+        target = f'("{stock_id}" OR "{name}")'
+    else:
+        target = f'"{stock_id}"'
+
+    # 可選：加入財經事件關鍵字過濾，只留下重大新聞（預設關閉）
+    # key_events = "(營收 OR 財報 OR 法說會 OR 股利 OR 訂單 OR 漲停 OR 跌停)"
+    # target = f'{target} {key_events}'
+
+    # --- 2. 限定來源網站（台灣主流財經媒體）---
+    sites = (
+        "(site:moneydj.com OR site:money.udn.com OR site:ctee.com.tw OR site:cna.com.tw OR "
+        "site:cnyes.com OR site:ec.ltn.com.tw OR site:tw.stock.yahoo.com OR "
+        "site:businesstoday.com.tw OR site:wealth.com.tw OR site:technews.tw)"
+    )
+
+    # --- 3. 加入時間範圍過濾（when:Nd 代表最近 N 天）---
+    time_filter = f"when:{days}d"
+
+    # 組合最終送給 Google News RSS 的完整查詢字串
+    query = f"{target} {sites} {time_filter}"
+
     rss_url = (
         "https://news.google.com/rss/search?"
         + urllib.parse.urlencode({"q": query, "hl": "zh-TW", "gl": "TW", "ceid": "TW:zh-Hant"})
     )
+
     try:
         req = urllib.request.Request(
             rss_url,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; StockBot/1.0)"},
+            # 使用完整的 Chrome User-Agent，降低被 Google 擋下的機率
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
         )
         with urllib.request.urlopen(req, timeout=8) as resp:
             xml_bytes = resp.read()
@@ -464,11 +528,51 @@ def get_stock_news(stock_id: str, name: str = Query(default="")) -> Dict[str, An
         if channel is None:
             return {"items": []}
 
+        # --- 4. 黑名單過濾：排除技術分析類雜訊新聞 ---
+        # 可依實際觀察到的雜訊標題隨時擴充這份清單
+        blacklist = ["K線", "均線", "盤中速報", "技術面", "KD", "MACD", "黃金交叉", "死亡交叉"]
+
         items = []
-        for item in channel.findall("item")[:10]:
+        seen_titles: set = set()  # 第一道防線：完全相同標題直接跳過
+
+        for item in channel.findall("item"):
             title = item.findtext("title") or ""
-            link  = item.findtext("link") or ""
-            pub   = item.findtext("pubDate") or ""
+
+            # 過濾一：黑名單關鍵字檢查
+            if any(bad_word in title for bad_word in blacklist):
+                continue
+
+            # 過濾二：完全相同標題去重
+            if title in seen_titles:
+                continue
+
+            # 過濾三：進階相似度去重
+            is_duplicate = False
+            current_clean_title = clean_title_for_compare(title)
+            current_keywords = get_special_keywords(current_clean_title)
+
+            for existing_item in items:
+                existing_clean_title = clean_title_for_compare(existing_item["title"])
+                existing_keywords = get_special_keywords(existing_clean_title)
+
+                # 條件 A：核心標題相似度超過 75%，視為同一則新聞
+                similarity = difflib.SequenceMatcher(None, current_clean_title, existing_clean_title).ratio()
+                if similarity > 0.75:
+                    is_duplicate = True
+                    break
+
+                # 條件 B：標題中有相同的「有意義英文關鍵字」（長度 > 4），視為同一則新聞
+                # 注意：AI、ETF 等短字已在 get_special_keywords 中濾除，不會誤觸此條件
+                if current_keywords and (current_keywords & existing_keywords):
+                    is_duplicate = True
+                    break
+
+            if is_duplicate:
+                continue
+
+            # --- 5. 通過所有過濾，加入結果清單 ---
+            link = item.findtext("link") or ""
+            pub = item.findtext("pubDate") or ""
             source_el = item.find("source")
             source = source_el.text if source_el is not None else ""
 
@@ -479,7 +583,20 @@ def get_stock_news(stock_id: str, name: str = Query(default="")) -> Dict[str, An
                 "source":  source,
             })
 
+            seen_titles.add(title)
+
+            # 最多回傳 10 筆，避免回應過大
+            if len(items) >= 10:
+                break
+
+        # --- 6. 設定 Vercel Edge Cache ---
+        # s-maxage=300：Vercel CDN 快取 5 分鐘，同一時段的大量前端請求不會重複打爬蟲
+        # stale-while-revalidate=60：快取過期後，背景更新期間仍先回傳舊快取，避免卡頓
+        response.headers["Cache-Control"] = "public, s-maxage=300, stale-while-revalidate=60"
+
         return {"items": items}
 
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch news: {e}")
+        # 使用 logger 記錄完整錯誤，可在 Vercel Dashboard → Functions → Logs 中查看
+        logger.error("抓取新聞失敗 | stock_id=%s | url=%s | error=%s", stock_id, rss_url, e)
+        raise HTTPException(status_code=502, detail=f"Failed to fetch news: {str(e)}")

@@ -25,7 +25,6 @@ def calculate_valuation(stock_id):
         df_yearly_rev = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_yearly_revenue.csv"))
         df_monthly_eps = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_monthly_eps.csv"))
         df_div = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_dividend_history.csv"))
-        df_3yr_yield = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_3yr_yield.csv"))
         df_hist_val = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_historical_valuation.csv"))
 
         # 🔍 2. 提取最新數值
@@ -40,7 +39,9 @@ def calculate_valuation(stock_id):
         revenue_ytd = df_revenue.iloc[-1]['revenue_ytd(bil)']      
         
         eps_ytd = df_monthly_eps.iloc[-1]['eps_ytd']
-        avg_yield_3yr = df_3yr_yield.iloc[-1]['avg_yield'] / 100   
+        # 從 historical_valuation 取最近 3 筆有效殖利率自動計算平均
+        df_3yr = df_hist_val.tail(3)
+        avg_yield_3yr = round(df_3yr['annual_yield_pct'].mean() / 100, 4)
 
         # 計算近 7 年平均盈餘分配率
         df_div_7yr = df_div.tail(7).copy()

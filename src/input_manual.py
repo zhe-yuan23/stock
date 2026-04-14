@@ -309,13 +309,12 @@ if __name__ == "__main__":
         print("1. 輸入 [金控每月自結盈餘] (每月查新聞)")
         print("2. 輸入 [歷年股利與盈餘] (查股利政策)(財務比率表)")
         print("3. 輸入 [歷年總營收] (損益表-營業收入)")  
-        print("4. 輸入 [近三年平均殖利率] (查股利政策-近三年發放取平均)")  # 🌟 新增選項
-        print("5. 輸入 [歷年本益比極值] (本益比河流圖)") 
-        print("6. 輸入 [歷年殖利率]")
-        print("7. 離開程式")
+        print("4. 輸入 [歷年本益比極值] (本益比河流圖)") 
+        print("5. 輸入 [歷年殖利率]")
+        print("6. 離開程式")
         print("======================================")
         
-        choice = input("請選擇要執行的項目 (1/2/3/4/5/6/7): ").strip()
+        choice = input("請選擇要執行的項目 (1/2/3/4/5/6): ").strip()
         
         if choice == '1':
             input_monthly_eps()
@@ -324,13 +323,11 @@ if __name__ == "__main__":
         elif choice == '3':
             input_yearly_revenue()
         elif choice == '4':
-            input_3yr_avg_yield()
-        elif choice == '5':
             input_historical_pe()
-        elif choice == '6':
+        elif choice == '5':
             input_historical_yield()
-        elif choice == '7':
+        elif choice == '6':
             print("👋 離開程式，記得將變更 git push 到 GitHub 喔！")
             break
         else:
-            print("❌ 輸入錯誤，請輸入 1, 2, 3, 4, 5, 6 或 7。")
+            print("❌ 輸入錯誤，請輸入 1, 2, 3, 4, 5 或 6。")
