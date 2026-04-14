@@ -36,14 +36,18 @@ async function fetchLivePrice(stockId) {
   }
 }
 
-// ── Fetch all live prices at once ──
+// ── Fetch all live prices in one request ──
 async function fetchAllLivePrices(stockIds) {
-  const results = {};
-  await Promise.all(stockIds.map(async id => {
-    const price = await fetchLivePrice(id);
-    if (price !== null) results[id] = price;
-  }));
-  return results;
+  try {
+    const apiBase = getApiBase();
+    const ids = stockIds.join(',');
+    const res = await fetch(`${apiBase}/api/live-prices?ids=${encodeURIComponent(ids)}`);
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data?.prices ?? {};
+  } catch {
+    return {};
+  }
 }
 
 // ── Clock ──

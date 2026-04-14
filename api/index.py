@@ -391,6 +391,40 @@ def get_stock_detail(stock_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/live-prices")
+def get_live_prices(ids: str = Query(..., description="逗號分隔的股票代號，例如 2330,2881")) -> Dict[str, Any]:
+    """Fetch live prices for multiple stocks concurrently."""
+    import json
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    stock_ids = [s.strip() for s in ids.split(",") if s.strip()]
+
+    def fetch_one(stock_id: str):
+        symbol = f"{stock_id}.TW"
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?interval=1m&range=1d"
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; StockBot/1.0)"},
+            )
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                data = json.loads(resp.read())
+            price = data["chart"]["result"][0]["meta"]["regularMarketPrice"]
+            return stock_id, float(price)
+        except Exception:
+            return stock_id, None
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(fetch_one, sid): sid for sid in stock_ids}
+        for future in as_completed(futures):
+            sid, price = future.result()
+            if price is not None:
+                results[sid] = price
+
+    return {"prices": results}
+
+
 @app.get("/api/live-price/{stock_id}")
 def get_live_price(stock_id: str) -> Dict[str, Any]:
     """Proxy Yahoo Finance to avoid CORS issues in the browser."""
