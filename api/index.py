@@ -600,3 +600,34 @@ def get_stock_news(
         # 使用 logger 記錄完整錯誤，可在 Vercel Dashboard → Functions → Logs 中查看
         logger.error("抓取新聞失敗 | stock_id=%s | url=%s | error=%s", stock_id, rss_url, e)
         raise HTTPException(status_code=502, detail=f"Failed to fetch news: {str(e)}")
+    
+@app.get("/api/taiex")
+def get_taiex() -> Dict[str, Any]:
+    """
+    回傳加權指數資訊：
+    - current_close: 最新收盤價
+    - all_time_high: 歷史最高收盤價（從累積 CSV 計算）
+    - drawdown_pct: 從歷史高點的跌幅（負值，例如 -12.3 代表跌了 12.3%）
+    - date: 最新資料日期
+    """
+    taiex_path = DATA_DIR / "taiex" / "taiex_price.csv"
+    if not taiex_path.exists():
+        raise HTTPException(status_code=404, detail="加權指數資料尚未建立，請先執行 update_job.py")
+ 
+    df = pd.read_csv(taiex_path)
+    if df.empty:
+        raise HTTPException(status_code=404, detail="加權指數資料為空")
+ 
+    df = df.sort_values("date", ascending=True).reset_index(drop=True)
+    latest = df.iloc[-1]
+    current_close = float(latest["close"])
+    all_time_high = float(df["close"].max())
+    drawdown_pct = round((current_close - all_time_high) / all_time_high * 100, 2)
+ 
+    return {
+        "date": str(latest["date"]),
+        "current_close": current_close,
+        "all_time_high": all_time_high,
+        "drawdown_pct": drawdown_pct,          # 負值：e.g. -12.3
+        "is_drawdown_alert": drawdown_pct <= -10.0,  # 跌逾 10% 時為 True
+    }

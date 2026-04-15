@@ -160,6 +160,52 @@ def update_daily_data(stock_ids, base_dir="data"):
     except Exception as e:
         print(f"❌ 股數更新失敗: {e}")
 
+
+# ================= 抓取加權指數 =================
+def update_taiex_data(base_dir="data"):
+    """
+    從 TWSE 官方 MI_INDEX API 抓取加權指數收盤價，
+    累積存至 data/taiex/taiex_price.csv。
+    後端可讀此檔計算歷史最高點與 drawdown。
+    """
+    taiex_dir = os.path.join(base_dir, "taiex")
+    os.makedirs(taiex_dir, exist_ok=True)
+    file_path = os.path.join(taiex_dir, "taiex_price.csv")
+
+    try:
+        print("正在抓取並更新加權指數...")
+        trading_date = get_real_latest_trading_date()
+        data = _http_get_json("https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX")
+
+        # 找出「發行量加權股價指數」那一筆
+        taiex_row = next(
+            (row for row in data if row.get("指數") == "發行量加權股價指數"),
+            None
+        )
+        if taiex_row is None:
+            print("⚠️ 找不到加權指數資料，略過。")
+            return
+
+        close_str = taiex_row.get("收盤指數", "").replace(",", "").strip()
+        if not close_str or close_str == "-":
+            print("⚠️ 加權指數收盤值為空，略過。")
+            return
+
+        close = float(close_str)
+        df_save = pd.DataFrame([{"date": trading_date, "close": close}])
+
+        if os.path.exists(file_path):
+            df_old = pd.read_csv(file_path)
+            df_save = pd.concat([df_old, df_save], ignore_index=True).drop_duplicates(subset=["date"], keep="last")
+
+        df_save = df_save.sort_values(by="date", ascending=True)
+        df_save.to_csv(file_path, index=False)
+        print(f"✅ 加權指數存檔完成！{trading_date} 收盤：{close:.2f}")
+
+    except Exception as e:
+        print(f"❌ 加權指數更新失敗: {e}")
+
+
 # ================= 當作主程式單獨執行時 =================
 if __name__ == "__main__":
     my_stocks = ["2881", "2882", "2883", "2884", "2885", "2887", "2890", "2891", "2892"]
@@ -167,4 +213,5 @@ if __name__ == "__main__":
     
     print(f"=== 開始執行台股每日資料更新 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}) ===")
     update_daily_data(stock_ids=my_stocks, base_dir=my_dir)
+    update_taiex_data(base_dir=my_dir)
     print("=== 全部品項更新完畢 ===")

@@ -20,9 +20,15 @@ except Exception as e:
 # 2. 執行月營收更新
 try:
     print("\n--- 執行任務 2：更新每月營收資料 ---")
-    # 注意：剛剛我們把函數名稱改成 update_revenue_data 了
-    update_monthly_data.update_revenue_data(stock_ids, base_dir) 
+    update_monthly_data.update_revenue_data(stock_ids, base_dir)
 except Exception as e:
     print(f"⚠️ 月營收任務發生錯誤: {e}")
+
+# 3. 執行加權指數更新
+try:
+    print("\n--- 執行任務 3：更新加權指數 ---")
+    update_daily_data.update_taiex_data(base_dir)
+except Exception as e:
+    print(f"⚠️ 加權指數任務發生錯誤: {e}")
 
 print("\n=== 🎉 所有自動更新任務執行完畢 ===")
