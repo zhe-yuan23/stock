@@ -155,6 +155,75 @@
       50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(0,230,118,0); }
     }
 
+    /* ── TAIEX BANNER ── */
+    .taiex-banner {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted2);
+      letter-spacing: 0.06em;
+      flex-wrap: wrap;
+    }
+
+    .taiex-label {
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .taiex-close {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .taiex-drawdown {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .taiex-drawdown.safe   { color: var(--green); }
+    .taiex-drawdown.warn   { color: var(--orange); }
+    .taiex-drawdown.alert  { color: var(--red); }
+
+    .taiex-alert-badge {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,61,90,0.12);
+      border: 1px solid var(--red-dim);
+      border-radius: 4px;
+      padding: 3px 10px;
+      color: var(--red);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      animation: badge-pulse 2s infinite;
+    }
+
+    .taiex-alert-badge.visible { display: flex; }
+
+    @keyframes badge-pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.6; }
+    }
+
+    .taiex-ath {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .taiex-date {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
     /* ── TOOLBAR ── */
     .toolbar {
       background: var(--surface);
@@ -573,6 +642,16 @@
     <div id="clock">--:--:--</div>
   </div>
 </header>
+
+<!-- ── TAIEX BANNER：加權指數警示列 ── -->
+<div class="taiex-banner" id="taiexBanner" style="display:none;">
+  <span class="taiex-label">加權指數</span>
+  <span class="taiex-close" id="taiexClose">—</span>
+  <span class="taiex-drawdown" id="taiexDrawdown">—</span>
+  <span class="taiex-ath" id="taiexAth"></span>
+  <span class="taiex-alert-badge" id="taiexAlertBadge">⚠ 距歷史高點 -10% 以上</span>
+  <span class="taiex-date" id="taiexDate"></span>
+</div>
 
 <div class="toolbar">
   <div class="toolbar-left">

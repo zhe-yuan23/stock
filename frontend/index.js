@@ -395,3 +395,38 @@ function applyLivePricesToCards(livePrices, items) {
     }
   });
 }
+
+// ── Taiex Banner ──
+async function loadTaiex() {
+  try {
+    const apiBase = getApiBase();
+    const res = await fetch(`${apiBase}/api/taiex`);
+    if (!res.ok) return;
+    const data = await res.json();
+ 
+    const { current_close, all_time_high, drawdown_pct, date, is_drawdown_alert } = data;
+ 
+    $('taiexClose').textContent = current_close.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+ 
+    const drawdownEl = $('taiexDrawdown');
+    const sign = drawdown_pct >= 0 ? '+' : '';
+    drawdownEl.textContent = `${sign}${drawdown_pct.toFixed(2)}% from ATH`;
+ 
+    if (drawdown_pct >= -5)        drawdownEl.className = 'taiex-drawdown safe';
+    else if (drawdown_pct >= -10)  drawdownEl.className = 'taiex-drawdown warn';
+    else                           drawdownEl.className = 'taiex-drawdown alert';
+ 
+    $('taiexAth').textContent = `ATH ${all_time_high.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    $('taiexDate').textContent = date;
+ 
+    if (is_drawdown_alert) {
+      $('taiexAlertBadge').classList.add('visible');
+    }
+ 
+    $('taiexBanner').style.display = 'flex';
+  } catch {
+    // 靜默失敗，不影響主頁面
+  }
+}
+ 
+loadTaiex();

@@ -119,7 +119,7 @@ def _list_stock_ids() -> List[str]:
         return []
     out: List[str] = []
     for p in DATA_DIR.iterdir():
-        if p.is_dir() and p.name != "manual_data":
+        if p.is_dir() and p.name not in ["manual_data", "taiex"]:
             out.append(p.name)
     return sorted(out)
 
