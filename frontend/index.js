@@ -406,25 +406,32 @@ function applyLivePricesToCards(livePrices, items) {
  *   08:00 之後 / 非交易日             → CSV 收盤（由 /api/taiex 提供）
  */
 function taiexPriceMode() {
-  // 支援 ?live=1 強制即時 / ?live=0 強制昨收，方便測試
   const param = new URLSearchParams(window.location.search).get('live');
   if (param === '1') return 'live';
   if (param === '0') return 'prev';
- 
-  const now = new Date();
-  const tw  = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
-  const day = tw.getDay();           // 0=日, 6=六
-  const min = tw.getHours() * 60 + tw.getMinutes();
- 
-  const isWeekday      = day >= 1 && day <= 5;
-  const isTradingNow   = isWeekday && min >= 9 * 60 && min < 14 * 60 + 30;
-  const isAfterClose   = min >= 14 * 60 + 30 || !isWeekday;
-  const isBeforeUpdate = min < 8 * 60;
- 
-  if (isTradingNow)                   return 'live';
-  if (isAfterClose || isBeforeUpdate) return 'prev';
-  return 'csv';
+
+  return isTradingHours() ? 'live' : 'prev';
 }
+// function taiexPriceMode() {
+//   // 支援 ?live=1 強制即時 / ?live=0 強制昨收，方便測試
+//   const param = new URLSearchParams(window.location.search).get('live');
+//   if (param === '1') return 'live';
+//   if (param === '0') return 'prev';
+ 
+//   const now = new Date();
+//   const tw  = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+//   const day = tw.getDay();           // 0=日, 6=六
+//   const min = tw.getHours() * 60 + tw.getMinutes();
+ 
+//   const isWeekday      = day >= 1 && day <= 5;
+//   const isTradingNow   = isWeekday && min >= 9 * 60 && min < 14 * 60 + 30;
+//   const isAfterClose   = min >= 14 * 60 + 30 || !isWeekday;
+//   const isBeforeUpdate = min < 8 * 60;
+ 
+//   if (isTradingNow)                   return 'live';
+//   if (isAfterClose || isBeforeUpdate) return 'prev';
+//   return 'csv';
+// }
  
 function renderTaiexBanner({ current, all_time_high, drawdown_pct, date, mode }) {
   if (current == null) return;
@@ -464,11 +471,21 @@ function renderTaiexBanner({ current, all_time_high, drawdown_pct, date, mode })
 async function loadTaiex() {
   try {
     const apiBase = getApiBase();
-    const mode    = taiexPriceMode();
- 
-    if (mode === 'csv') {
-      // 08:00 後 CSV 已更新，直接讀收盤
-      const res  = await fetch(`${apiBase}/api/taiex`);
+    const mode = taiexPriceMode();
+
+    if (mode === 'live') {
+      const res = await fetch(`${apiBase}/api/taiex/live`);
+      if (!res.ok) return;
+      const data = await res.json();
+      renderTaiexBanner({
+        current:       data.live_price,
+        all_time_high: data.all_time_high,
+        drawdown_pct:  data.live_drawdown_pct,
+        date:          '',
+        mode:          'live',
+      });
+    } else {
+      const res = await fetch(`${apiBase}/api/taiex`);
       if (!res.ok) return;
       const data = await res.json();
       renderTaiexBanner({
@@ -476,21 +493,7 @@ async function loadTaiex() {
         all_time_high: data.all_time_high,
         drawdown_pct:  data.drawdown_pct,
         date:          data.date,
-        mode:          'csv',
-      });
-    } else {
-      // 交易時間 or 盤後 ~ 08:00 → 打 live endpoint
-      const res  = await fetch(`${apiBase}/api/taiex/live`);
-      if (!res.ok) return;
-      const data = await res.json();
- 
-      const useLive = (mode === 'live');
-      renderTaiexBanner({
-        current:       useLive ? data.live_price        : data.previous_close,
-        all_time_high: data.all_time_high,
-        drawdown_pct:  useLive ? data.live_drawdown_pct : data.prev_drawdown_pct,
-        date:          '',
-        mode,
+        mode:          'prev',
       });
     }
   } catch {
