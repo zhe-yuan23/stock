@@ -1,5 +1,5 @@
-const DEFAULT_API_BASE = "";
-// const DEFAULT_API_BASE = "http://localhost:8000";
+// const DEFAULT_API_BASE = "";
+const DEFAULT_API_BASE = "http://localhost:8000";
 const API_KEY = "apiBase";
 
 function getApiBase() {
@@ -397,36 +397,110 @@ function applyLivePricesToCards(livePrices, items) {
 }
 
 // ── Taiex Banner ──
+ 
+/**
+ * 判斷現在應該用哪個數值：
+ *   交易時間 (09:00–14:30, 週一~五)  → live_price
+ *   盤後 ~ 隔天 08:00                → previous_close
+ *   08:00 之後 / 非交易日             → CSV 收盤（由 /api/taiex 提供）
+ */
+function taiexPriceMode() {
+  // 支援 ?live=1 強制即時 / ?live=0 強制昨收，方便測試
+  const param = new URLSearchParams(window.location.search).get('live');
+  if (param === '1') return 'live';
+  if (param === '0') return 'prev';
+ 
+  const now = new Date();
+  const tw  = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const day = tw.getDay();           // 0=日, 6=六
+  const min = tw.getHours() * 60 + tw.getMinutes();
+ 
+  const isWeekday      = day >= 1 && day <= 5;
+  const isTradingNow   = isWeekday && min >= 9 * 60 && min < 14 * 60 + 30;
+  const isAfterClose   = min >= 14 * 60 + 30 || !isWeekday;
+  const isBeforeUpdate = min < 8 * 60;
+ 
+  if (isTradingNow)                   return 'live';
+  if (isAfterClose || isBeforeUpdate) return 'prev';
+  return 'csv';
+}
+ 
+function renderTaiexBanner({ current, all_time_high, drawdown_pct, date, mode }) {
+  if (current == null) return;
+ 
+  $('taiexClose').textContent = current.toLocaleString('zh-TW', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+ 
+  const drawdownEl = $('taiexDrawdown');
+  if (drawdown_pct != null) {
+    const sign = drawdown_pct >= 0 ? '+' : '';
+    drawdownEl.textContent = `${sign}${drawdown_pct.toFixed(2)}% from ATH`;
+    if (drawdown_pct >= -5)       drawdownEl.className = 'taiex-drawdown safe';
+    else if (drawdown_pct >= -10) drawdownEl.className = 'taiex-drawdown warn';
+    else                          drawdownEl.className = 'taiex-drawdown alert';
+  }
+ 
+  if (all_time_high != null) {
+    $('taiexAth').textContent = `ATH ${all_time_high.toLocaleString('zh-TW', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    })}`;
+  }
+ 
+  // 來源標籤
+  const modeLabel = { live: '● LIVE', prev: '昨收', csv: '收盤' }[mode] || '';
+  $('taiexDate').textContent = `${modeLabel}  ${date || ''}`;
+ 
+  if (drawdown_pct != null && drawdown_pct <= -10) {
+    $('taiexAlertBadge').classList.add('visible');
+  } else {
+    $('taiexAlertBadge').classList.remove('visible');
+  }
+ 
+  $('taiexBanner').style.display = 'flex';
+}
+ 
 async function loadTaiex() {
   try {
     const apiBase = getApiBase();
-    const res = await fetch(`${apiBase}/api/taiex`);
-    if (!res.ok) return;
-    const data = await res.json();
+    const mode    = taiexPriceMode();
  
-    const { current_close, all_time_high, drawdown_pct, date, is_drawdown_alert } = data;
+    if (mode === 'csv') {
+      // 08:00 後 CSV 已更新，直接讀收盤
+      const res  = await fetch(`${apiBase}/api/taiex`);
+      if (!res.ok) return;
+      const data = await res.json();
+      renderTaiexBanner({
+        current:       data.current_close,
+        all_time_high: data.all_time_high,
+        drawdown_pct:  data.drawdown_pct,
+        date:          data.date,
+        mode:          'csv',
+      });
+    } else {
+      // 交易時間 or 盤後 ~ 08:00 → 打 live endpoint
+      const res  = await fetch(`${apiBase}/api/taiex/live`);
+      if (!res.ok) return;
+      const data = await res.json();
  
-    $('taiexClose').textContent = current_close.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
- 
-    const drawdownEl = $('taiexDrawdown');
-    const sign = drawdown_pct >= 0 ? '+' : '';
-    drawdownEl.textContent = `${sign}${drawdown_pct.toFixed(2)}% from ATH`;
- 
-    if (drawdown_pct >= -5)        drawdownEl.className = 'taiex-drawdown safe';
-    else if (drawdown_pct >= -10)  drawdownEl.className = 'taiex-drawdown warn';
-    else                           drawdownEl.className = 'taiex-drawdown alert';
- 
-    $('taiexAth').textContent = `ATH ${all_time_high.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    $('taiexDate').textContent = date;
- 
-    if (is_drawdown_alert) {
-      $('taiexAlertBadge').classList.add('visible');
+      const useLive = (mode === 'live');
+      renderTaiexBanner({
+        current:       useLive ? data.live_price        : data.previous_close,
+        all_time_high: data.all_time_high,
+        drawdown_pct:  useLive ? data.live_drawdown_pct : data.prev_drawdown_pct,
+        date:          '',
+        mode,
+      });
     }
- 
-    $('taiexBanner').style.display = 'flex';
   } catch {
     // 靜默失敗，不影響主頁面
   }
 }
  
 loadTaiex();
+ 
+// 交易時間內每分鐘重新抓一次
+setInterval(() => {
+  if (taiexPriceMode() === 'live') loadTaiex();
+}, 60 * 1000);
+ 
