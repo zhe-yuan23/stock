@@ -631,3 +631,59 @@ def get_taiex() -> Dict[str, Any]:
         "drawdown_pct": drawdown_pct,          # 負值：e.g. -12.3
         "is_drawdown_alert": drawdown_pct <= -10.0,  # 跌逾 10% 時為 True
     }
+
+@app.get("/api/taiex/live")
+def get_taiex_live() -> Dict[str, Any]:
+    """
+    從 Yahoo Finance 抓 ^TWII 即時資料，回傳：
+    - live_price:      即時指數（交易時間）
+    - previous_close:  昨日收盤指數（盤後到隔天 08:00 使用）
+    同時從 CSV 讀取歷史最高點，計算 drawdown。
+    前端根據當前時間決定用 live_price 或 previous_close。
+    """
+    import json as _json
+ 
+    symbol = "%5ETWII"  # ^TWII URL encoded
+    url = (
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+        f"?interval=1m&range=1d"
+    )
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; StockBot/1.0)"},
+        )
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = _json.loads(resp.read())
+ 
+        meta = data["chart"]["result"][0]["meta"]
+        live_price      = float(meta["regularMarketPrice"])
+        previous_close  = float(meta["previousClose"] if "previousClose" in meta else meta["chartPreviousClose"])
+ 
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch ^TWII: {e}")
+ 
+    # ── ATH from CSV ──
+    taiex_path = DATA_DIR / "taiex" / "taiex_price.csv"
+    all_time_high = None
+    if taiex_path.exists():
+        try:
+            df = pd.read_csv(taiex_path)
+            if not df.empty:
+                all_time_high = float(df["close"].max())
+        except Exception:
+            pass
+ 
+    def _drawdown(current, ath):
+        if ath is None or ath == 0:
+            return None
+        return round((current - ath) / ath * 100, 2)
+ 
+    return {
+        "live_price":          live_price,
+        "previous_close":      previous_close,
+        "all_time_high":       all_time_high,
+        "live_drawdown_pct":   _drawdown(live_price, all_time_high),
+        "prev_drawdown_pct":   _drawdown(previous_close, all_time_high),
+    }
+ 

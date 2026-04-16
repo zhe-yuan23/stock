@@ -1,5 +1,5 @@
-// const DEFAULT_API_BASE = "";
-const DEFAULT_API_BASE = "http://localhost:8000";
+const DEFAULT_API_BASE = "";
+// const DEFAULT_API_BASE = "http://localhost:8000";
 const API_KEY = "apiBase";
 
 function getApiBase() {
@@ -297,13 +297,13 @@ function isAutoUpdateHours() {
   return minutes >= 9 * 60 && minutes < 14 * 60;
 }
 
-setInterval(async () => {
-  if (!isAutoUpdateHours()) return;
-  const stockIds = allItems.map(i => i.stock_id);
-  const livePrices = await fetchAllLivePrices(stockIds);
-  lastLivePrices = livePrices;
-  applyLivePricesToCards(livePrices, allItems);
-}, 30 * 60 * 1000);
+// setInterval(async () => {
+//   if (!isAutoUpdateHours()) return;
+//   const stockIds = allItems.map(i => i.stock_id);
+//   const livePrices = await fetchAllLivePrices(stockIds);
+//   lastLivePrices = livePrices;
+//   applyLivePricesToCards(livePrices, allItems);
+// }, 30 * 60 * 1000);    //每 30 分鐘執行一次（30 × 60 × 1000 毫秒）
 
 // ── Pull to Refresh ──
 (function initPullToRefresh() {
@@ -347,6 +347,7 @@ setInterval(async () => {
       const livePrices = await fetchAllLivePrices(stockIds);
       lastLivePrices = livePrices;
       applyLivePricesToCards(livePrices, allItems);
+      await loadTaiex();
       indicator.style.height = '0';
     }
   }, { passive: true });
@@ -500,7 +501,7 @@ async function loadTaiex() {
 loadTaiex();
  
 // 交易時間內每分鐘重新抓一次
-setInterval(() => {
-  if (taiexPriceMode() === 'live') loadTaiex();
-}, 60 * 1000);
+// setInterval(() => {
+//   if (taiexPriceMode() === 'live') loadTaiex();
+// }, 60 * 1000);
  

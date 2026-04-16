@@ -418,15 +418,15 @@ function isAutoUpdateHours() {
 let _detailValuation = null;
 let _detailData = null;
 
-setInterval(async () => {
-  if (!isAutoUpdateHours()) return;
-  const stockId = getQueryParam('stock_id');
-  if (!stockId || !_detailValuation) return;
-  const livePrice = await fetchLivePrice(stockId);
-  if (livePrice !== null) {
-    applyLivePriceToDetail(livePrice, _detailValuation, _detailData);
-  }
-}, 60 * 60 * 1000);  //每 60 分鐘執行一次（60 × 60 × 1000 毫秒）
+// setInterval(async () => {
+//   if (!isAutoUpdateHours()) return;
+//   const stockId = getQueryParam('stock_id');
+//   if (!stockId || !_detailValuation) return;
+//   const livePrice = await fetchLivePrice(stockId);
+//   if (livePrice !== null) {
+//     applyLivePriceToDetail(livePrice, _detailValuation, _detailData);
+//   }
+// }, 30 * 60 * 1000);  //每 60 分鐘執行一次（30 × 60 × 1000 毫秒）
 
 // ── Tab switch ──
 function switchTab(tab) {
