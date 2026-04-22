@@ -204,7 +204,10 @@ function buildCard(item, index) {
     <div class="card-body">
       <div class="card-left">
         <div class="stock-code">${item.stock_id}</div>
+      <div style="display:flex;align-items:baseline;gap:8px;">
         <div class="stock-name">${item.company_name_short || '未知'}</div>
+        <div class="card-change" style="display:none;font-family:var(--mono);font-size:11px;"></div>
+      </div>
         <div class="achieve-label">YTD 達成率</div>
         <div class="achieve-value ${achieveClass(rate)}">${fmtAchieve(rate)}</div>
         <div class="card-meta">
@@ -216,6 +219,7 @@ function buildCard(item, index) {
         <div>
           <div class="price-label">LAST PRICE</div>
           <div class="price-value card-price-value">${priceDisplay}</div>
+          <div class="card-change" style="display:none;font-family:var(--mono);font-size:11px;"></div>
         </div>
         <div class="volatility-wrap">
           <div class="volatility-label">波動位階</div>
@@ -371,6 +375,18 @@ function applyLivePricesToCards(livePrices, items) {
     // Update volatility value and band bar if est_fair_price exists
     const item = items.find(i => i.stock_id === stockId);
     if (!item) return;
+
+    const changeEl = card.querySelector('.card-change');
+    if (changeEl && item.current_price) {
+      const diff = livePrice - item.current_price;
+      const pct = (diff / item.current_price) * 100;
+      const sign = diff > 0 ? '+' : '';
+      const color = diff > 0 ? 'var(--red)' : diff < 0 ? 'var(--green)' : 'var(--muted)';
+      const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
+      changeEl.style.display = 'block';
+      changeEl.style.color = color;
+      changeEl.textContent = `${arrow} ${sign}${fmt(diff, 2)} (${sign}${fmt(pct, 2)}%)`;
+    }
 
     // Recalculate price_volatility with live price
     const fairPrice = item.est_fair_price;
