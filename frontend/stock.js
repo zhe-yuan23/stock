@@ -23,7 +23,7 @@ function isTradingHours() {
   const minutes = tw.getHours() * 60 + tw.getMinutes();
   // 週一～五 09:00 以後，或 週二～六 08:00 以前（即前一個交易日收盤後到隔天更新前）
   const isTradingDay = day >= 1 && day <= 5;
-  const isNextMorning = day >= 2 && day <= 6 && minutes < 8 * 60;
+  const isNextMorning = day >= 1 && day <= 6 && minutes < 8 * 60;
   return (isTradingDay && minutes >= 9 * 60) || isNextMorning;
 }
 
