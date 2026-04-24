@@ -50,26 +50,65 @@ def calculate_valuation(stock_id):
 
         # 🧮 3. 開始執行 8 條基本面公式
         
-        # (前置作業) 反推近四季稅後淨利率
-        eps_4q = current_price / current_pe 
-        net_income_4q = eps_4q * shares_out
-        net_margin = net_income_4q / last_year_rev
+        # (前置作業) 反推近四季稅後淨利率(原始)
+        # eps_4q = current_price / current_pe 
+        # net_income_4q = eps_4q * shares_out
+        # net_margin = net_income_4q / last_year_rev
+        
+        # (前置作業) 近四季稅後淨利率
+        # 防呆：若查無本益比或本益比為負，直接設為 0 以免報錯
+        if pd.isna(current_pe) or current_pe <= 0:
+            eps_4q = 0.0
+            net_income_4q = 0.0
+            net_margin = 0.0
+        else:
+            eps_4q = current_price / current_pe 
+            net_income_4q = eps_4q * shares_out
+            net_margin = net_income_4q / last_year_rev
+
+
+        # 公式 1~9(原始)
+        # est_revenue = (1 + ytd_yoy_percent) * last_year_rev
+        # rev_achieve_rate = (revenue_ytd / est_revenue) * 100
+        # est_net_income = est_revenue * net_margin
+        # est_eps = est_net_income / shares_out
+        # eps_achieve_rate = (eps_ytd / est_eps) * 100
+        # est_dividend = est_eps * avg_payout_ratio
+        # est_fair_price = est_dividend / avg_yield_3yr
+        # est_current_yield = (est_dividend / current_price) * 100
+        # price_volatility = (current_price / est_fair_price) * 100
 
         # 公式 1~9
         est_revenue = (1 + ytd_yoy_percent) * last_year_rev
-        rev_achieve_rate = (revenue_ytd / est_revenue) * 100
+        # 防呆：避免推估營收為 0
+        rev_achieve_rate = (revenue_ytd / est_revenue) * 100 if est_revenue != 0 else 0.0
+        
         est_net_income = est_revenue * net_margin
         est_eps = est_net_income / shares_out
-        eps_achieve_rate = (eps_ytd / est_eps) * 100
+        
+        # 防呆：避免推估 EPS 為 0 導致除以零
+        eps_achieve_rate = (eps_ytd / est_eps) * 100 if est_eps != 0 else 0.0
+        
         est_dividend = est_eps * avg_payout_ratio
-        est_fair_price = est_dividend / avg_yield_3yr
-        est_current_yield = (est_dividend / current_price) * 100
-        price_volatility = (current_price / est_fair_price) * 100
+        
+        # 防呆：避免殖利率或推估價為 0
+        est_fair_price = (est_dividend / avg_yield_3yr) if avg_yield_3yr > 0 else 0.0
+        est_current_yield = (est_dividend / current_price) * 100 if current_price > 0 else 0.0
+        price_volatility = (current_price / est_fair_price) * 100 if est_fair_price > 0 else 0.0
+
+        # === 📊 本益比／殖利率區間估價（近7年歷史資料） ===
+        # df_hv = df_hist_val.tail(7).copy()
+        # avg_7yr_low_pe   = float(df_hv['lowest_pe'].mean())
+        # avg_7yr_high_pe  = float(df_hv['highest_pe'].mean())
 
         # === 📊 本益比／殖利率區間估價（近7年歷史資料） ===
         df_hv = df_hist_val.tail(7).copy()
-        avg_7yr_low_pe   = float(df_hv['lowest_pe'].mean())
-        avg_7yr_high_pe  = float(df_hv['highest_pe'].mean())
+        
+        # 防呆：過濾掉 lowest_pe 為 NaN 或 <= 0 的虧損年份，只拿有獲利的年份算平均本益比
+        df_hv_pe = df_hv[df_hv['lowest_pe'] > 0]
+        avg_7yr_low_pe  = float(df_hv_pe['lowest_pe'].mean()) if not df_hv_pe.empty else 0.0
+        avg_7yr_high_pe = float(df_hv_pe['highest_pe'].mean()) if not df_hv_pe.empty else 0.0
+
         # 過濾掉 annual_yield_pct == 0 的年份（該年未配息，不納入殖利率計算）
         df_hv_yield = df_hv[df_hv['annual_yield_pct'] > 0]
         max_7yr_yield = float(df_hv_yield['annual_yield_pct'].max()) / 100 if not df_hv_yield.empty else 0.0
