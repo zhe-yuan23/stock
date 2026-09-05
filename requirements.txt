@@ -1,6 +1,6 @@
-streamlit
 pandas
 requests
 numpy
 fastapi
 uvicorn
+altair
