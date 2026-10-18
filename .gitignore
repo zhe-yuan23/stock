@@ -3,3 +3,5 @@ test.*
 *.vscode
 __pycache__
 .venv
+*.lock
+.python-version
