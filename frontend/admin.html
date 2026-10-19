@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>資料管理 - 睡得著的投資</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root {
+      --bg: #080c10; --surface: #0d1117; --surface2: #111820;
+      --border: #1c2530; --text: #cdd5e0; --muted: #6b8096;
+      --accent: #00d4ff; --green: #00e676; --red: #ff3d5a;
+      --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans TC', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--sans); }
+    header { height: 58px; padding: 0 22px; display: flex; align-items: center; gap: 18px; background: var(--surface); border-bottom: 1px solid var(--border); }
+    header a { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 12px; }
+    header h1 { flex: 1; margin: 0; font-size: 18px; }
+    main { width: min(1100px, calc(100% - 32px)); margin: 28px auto 60px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+    .panel h2 { margin: 0 0 16px; font-size: 16px; }
+    .hint { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    input, select, button { width: 100%; border: 1px solid var(--border); border-radius: 6px; background: var(--surface2); color: var(--text); padding: 10px 11px; font: inherit; }
+    input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+    button { cursor: pointer; background: rgba(0,212,255,.12); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+    button.secondary { background: transparent; border-color: var(--border); color: var(--text); }
+    button:disabled { opacity: .5; cursor: wait; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; }
+    .actions button { width: auto; min-width: 130px; }
+    .message { margin-top: 12px; font-size: 13px; min-height: 20px; }
+    .message.success { color: var(--green); } .message.error { color: var(--red); }
+    .toolbar { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+    .toolbar label { flex: 1; min-width: 180px; }
+    .add-stock { display: flex; gap: 8px; align-items: end; margin-top: 16px; }
+    .add-stock label { flex: 1; max-width: 300px; }
+    .add-stock button { width: auto; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+    th, td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    th { color: var(--muted); font-weight: 500; }
+    .storage { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+    #app { display: none; }
+    @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } main { width: min(100% - 20px, 1100px); margin-top: 16px; } header { padding: 0 12px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html">← OVERVIEW</a>
+    <h1>手動資料管理</h1>
+    <span class="storage" id="storageLabel"></span>
+  </header>
+
+  <main>
+    <section class="panel" id="loginPanel">
+      <h2>管理員登入</h2>
+      <p class="hint">此頁面只負責修改手動財務資料。Token 由後端驗證，不會寫入前端程式碼。</p>
+      <div class="grid">
+        <label>API 位址（同網域可留白）<input id="apiBase" type="url" placeholder="https://your-api.example.com"></label>
+        <label>管理員 Token<input id="adminToken" type="password" autocomplete="current-password"></label>
+      </div>
+      <div class="actions"><button id="loginBtn">登入管理頁</button></div>
+      <div class="message" id="loginMessage"></div>
+    </section>
+
+    <section class="panel" id="app">
+      <div class="toolbar">
+        <label>股票<select id="stockSelect"></select></label>
+        <label>資料類型<select id="datasetSelect">
+          <option value="monthly_eps">每月 EPS</option>
+          <option value="yearly_revenue">年度營收</option>
+          <option value="dividend_history">歷年股利</option>
+          <option value="historical_valuation">歷史估價</option>
+        </select></label>
+      </div>
+      <div class="add-stock">
+        <label>新增追蹤股票<input id="newStockId" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="例如 1301"></label>
+        <button class="secondary" id="addStockBtn" type="button">新增股票</button>
+      </div>
+      <form id="dataForm" class="grid" style="margin-top:18px;"></form>
+      <div class="actions"><button id="saveBtn" type="submit" form="dataForm">儲存／覆蓋資料</button><button class="secondary" id="logoutBtn" type="button">登出</button></div>
+      <div class="message" id="saveMessage"></div>
+    </section>
+
+    <section class="panel" id="recordsPanel" style="display:none;">
+      <h2>目前資料</h2>
+      <div class="table-wrap"><table><thead id="recordsHead"></thead><tbody id="recordsBody"></tbody></table></div>
+    </section>
+  </main>
+  <script src="admin.js"></script>
+</body>
+</html>
