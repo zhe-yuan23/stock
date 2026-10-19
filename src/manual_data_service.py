@@ -202,6 +202,40 @@ class ManualDataStore:
         except urllib.error.URLError as exc:
             raise ManualDataError(f"GitHub API 連線失敗：{exc.reason}") from exc
 
+    def read_text_file(self, relative_path: str) -> tuple[str, str | None]:
+        if self.uses_github:
+            result = self._github_request("GET", relative_path)
+            if not result:
+                return "", None
+            try:
+                return base64.b64decode(result["content"]).decode("utf-8-sig"), result.get("sha")
+            except (KeyError, UnicodeDecodeError) as exc:
+                raise ManualDataError(f"GitHub 檔案格式錯誤：{relative_path}") from exc
+
+        path = self.repo_root / relative_path
+        if not path.exists():
+            return "", None
+        return path.read_text(encoding="utf-8-sig"), None
+
+    def write_text_file(self, relative_path: str, text: str, message: str) -> dict[str, Any]:
+        if self.uses_github:
+            _, sha = self.read_text_file(relative_path)
+            body: dict[str, Any] = {
+                "message": message,
+                "content": base64.b64encode(text.encode("utf-8")).decode("ascii"),
+                "branch": self.github_branch,
+            }
+            if sha:
+                body["sha"] = sha
+            self._github_request("PUT", relative_path, body)
+        else:
+            if os.getenv("VERCEL", "").lower() == "1":
+                raise ManualDataError("Vercel 尚未設定 GitHub 儲存，拒絕寫入暫存檔案")
+            path = self.repo_root / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        return {"storage": self.storage_name, "path": relative_path}
+
     def _read_github(self, stock_id: str, dataset: str) -> tuple[pd.DataFrame, str | None]:
         path = self._relative_path(stock_id, dataset)
         result = self._github_request("GET", path)

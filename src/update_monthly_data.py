@@ -2,6 +2,11 @@ import os
 import pandas as pd
 import requests
 from datetime import datetime
+from pathlib import Path
+try:
+    from .stock_registry import load_stock_ids
+except ImportError:
+    from stock_registry import load_stock_ids
 
 # 月營收
 
@@ -89,8 +94,8 @@ def update_revenue_data(stock_ids, base_dir="data"):
 
 # ================= 當作主程式單獨執行時 =================
 if __name__ == "__main__":
-    my_stocks = ["2881", "2882", "2883", "2884", "2885", "2887", "2890", "2891", "2892"]
     my_dir = "data"
+    my_stocks = load_stock_ids(Path(my_dir))
     
     print(f"=== 開始執行台股月營收資料更新 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}) ===")
     update_revenue_data(stock_ids=my_stocks, base_dir=my_dir)

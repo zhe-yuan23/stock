@@ -1,11 +1,16 @@
 # 匯入我們寫好的兩支模組
 import update_monthly_data
 import update_daily_data
+from pathlib import Path
+try:
+    from .stock_registry import load_stock_ids
+except ImportError:
+    from stock_registry import load_stock_ids
 from datetime import datetime
 
 # 統一設定股票清單與存檔資料夾
-stock_ids = ["2308", "2330", "2881", "2882", "2883", "2884", "2885", "2887", "2890", "2891", "2892"]
 base_dir = "data"
+stock_ids = load_stock_ids(Path(base_dir))
 
 print(f"=== 🚀 開始執行台股排程總任務 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}) ===")
 print(f"🎯 追蹤名單: {stock_ids}")

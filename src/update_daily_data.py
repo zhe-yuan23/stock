@@ -3,6 +3,11 @@ import requests
 import pandas as pd
 from datetime import datetime
 import time
+from pathlib import Path
+try:
+    from .stock_registry import load_stock_ids
+except ImportError:
+    from stock_registry import load_stock_ids
 
 DEFAULT_CONNECT_TIMEOUT_S = float(os.getenv("STOCK_API_CONNECT_TIMEOUT_S", "10"))
 DEFAULT_READ_TIMEOUT_S = float(os.getenv("STOCK_API_READ_TIMEOUT_S", "60"))
@@ -208,8 +213,8 @@ def update_taiex_data(base_dir="data"):
 
 # ================= 當作主程式單獨執行時 =================
 if __name__ == "__main__":
-    my_stocks = ["2881", "2882", "2883", "2884", "2885", "2887", "2890", "2891", "2892"]
     my_dir = "data"
+    my_stocks = load_stock_ids(Path(my_dir))
     
     print(f"=== 開始執行台股每日資料更新 ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}) ===")
     update_daily_data(stock_ids=my_stocks, base_dir=my_dir)

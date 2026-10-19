@@ -59,7 +59,7 @@ async function loadStocks() {
   const response = await fetch(`${apiBase()}/api/stocks/summary`);
   if (!response.ok) throw new Error(`股票清單載入失敗（HTTP ${response.status}）`);
   const data = await response.json();
-  const items = data.items || [];
+  const items = (data.items || []).slice().sort((a, b) => String(a.stock_id).localeCompare(String(b.stock_id), 'en', { numeric: true }));
   $('stockSelect').innerHTML = items.map(item => `<option value="${escapeHtml(item.stock_id)}">${escapeHtml(item.stock_id)} ${escapeHtml(item.company_name_short || '')}</option>`).join('');
   if (!items.length) throw new Error('找不到股票資料');
 }
@@ -75,10 +75,13 @@ function renderForm() {
 function renderRecords() {
   const dataset = $('datasetSelect').value;
   const fields = DATASET_FIELDS[dataset];
-  const rows = currentRecords[dataset] || [];
+  const key = DATASET_FIELDS[dataset][0].name;
+  const rows = (currentRecords[dataset] || []).slice().sort((a, b) =>
+    String(b[key] ?? '').localeCompare(String(a[key] ?? ''), 'en', { numeric: true })
+  );
   $('recordsPanel').style.display = 'block';
   $('recordsHead').innerHTML = `<tr>${fields.map(field => `<th>${field.label}</th>`).join('')}</tr>`;
-  $('recordsBody').innerHTML = rows.slice().reverse().map(row => `<tr>${fields.map(field => `<td>${escapeHtml(row[field.name])}</td>`).join('')}</tr>`).join('') || '<tr><td colspan="10">尚無資料</td></tr>';
+  $('recordsBody').innerHTML = rows.map(row => `<tr>${fields.map(field => `<td>${escapeHtml(row[field.name])}</td>`).join('')}</tr>`).join('') || '<tr><td colspan="10">尚無資料</td></tr>';
 }
 
 async function loadManualData() {
@@ -128,6 +131,25 @@ async function save(event) {
   finally { $('saveBtn').disabled = false; }
 }
 
+async function addStock() {
+  const stockId = $('newStockId').value.trim();
+  if (!/^\d{4}$/.test(stockId)) return setMessage('saveMessage', '股票代號必須是 4 位數字', 'error');
+  $('addStockBtn').disabled = true;
+  setMessage('saveMessage', '新增股票中……');
+  try {
+    const result = await request('/api/admin/stocks', { method: 'POST', body: JSON.stringify({ stock_id: stockId }) });
+    setMessage('saveMessage', `已新增 ${result.stock_id}，下一次資料更新會開始抓取`, 'success');
+    $('newStockId').value = '';
+    await loadStocks();
+    if (![...$('stockSelect').options].some(option => option.value === stockId)) {
+      $('stockSelect').add(new Option(`${stockId}（等待資料更新）`, stockId));
+    }
+    $('stockSelect').value = stockId;
+    await loadManualData();
+  } catch (error) { setMessage('saveMessage', error.message, 'error'); }
+  finally { $('addStockBtn').disabled = false; }
+}
+
 function logout() { sessionStorage.removeItem(TOKEN_KEY); window.location.reload(); }
 
 $('apiBase').value = localStorage.getItem(API_KEY) || '';
@@ -135,4 +157,5 @@ $('loginBtn').addEventListener('click', login);
 $('dataForm').addEventListener('submit', save);
 $('stockSelect').addEventListener('change', loadManualData);
 $('datasetSelect').addEventListener('change', renderForm);
+$('addStockBtn').addEventListener('click', addStock);
 $('logoutBtn').addEventListener('click', logout);

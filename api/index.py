@@ -1,6 +1,7 @@
 import sys
 import hmac
 import os
+import json
 import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
@@ -22,6 +23,7 @@ sys.path.append(str(REPO_ROOT))
 
 from src.calculator import calculate_valuation  # noqa: E402
 from src.manual_data_service import ManualDataError, ManualDataStore  # noqa: E402
+from src.stock_registry import load_stock_ids, normalize_stock_id, update_watchlist  # noqa: E402
 
 
 DATA_DIR = REPO_ROOT / "data"
@@ -120,13 +122,7 @@ def _get_baseline_revenue_for_estimate(
 
 
 def _list_stock_ids() -> List[str]:
-    if not DATA_DIR.exists():
-        return []
-    out: List[str] = []
-    for p in DATA_DIR.iterdir():
-        if p.is_dir() and p.name not in ["manual_data", "taiex"]:
-            out.append(p.name)
-    return sorted(out)
+    return load_stock_ids(DATA_DIR)
 
 
 def _get_stock_name_from_revenue(df_revenue: pd.DataFrame, fallback: str = "") -> str:
@@ -199,6 +195,35 @@ def get_manual_data(
             "datasets": MANUAL_DATA_STORE.read_all(stock_id),
         }
     except ManualDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/admin/stocks")
+def add_watchlist_stock(
+    payload: Dict[str, Any],
+    authorization: Optional[str] = Header(default=None),
+    x_admin_token: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    """Add a stock to the shared watchlist used by the updater and API."""
+    _require_admin(authorization=authorization, x_admin_token=x_admin_token)
+    try:
+        stock_id = normalize_stock_id(payload.get("stock_id", ""))
+        if MANUAL_DATA_STORE.uses_github:
+            current_text, _ = MANUAL_DATA_STORE.read_text_file("data/watchlist.json")
+            try:
+                current_payload = json.loads(current_text) if current_text else {"stocks": []}
+            except json.JSONDecodeError:
+                current_payload = {"stocks": []}
+            ids = sorted(
+                {normalize_stock_id(value) for value in current_payload.get("stocks", [])} | {stock_id},
+                key=int,
+            )
+        else:
+            ids = update_watchlist(DATA_DIR, stock_id)
+        watchlist_text = json.dumps({"stocks": ids}, ensure_ascii=False, indent=2) + "\n"
+        result = MANUAL_DATA_STORE.write_text_file("data/watchlist.json", watchlist_text, f"Add {stock_id} to watchlist")
+        return {"stock_id": stock_id, "stocks": ids, "storage": result["storage"]}
+    except (ManualDataError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 

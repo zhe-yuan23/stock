@@ -34,6 +34,9 @@
     .message.success { color: var(--green); } .message.error { color: var(--red); }
     .toolbar { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
     .toolbar label { flex: 1; min-width: 180px; }
+    .add-stock { display: flex; gap: 8px; align-items: end; margin-top: 16px; }
+    .add-stock label { flex: 1; max-width: 300px; }
+    .add-stock button { width: auto; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
     th, td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
@@ -71,6 +74,10 @@
           <option value="dividend_history">歷年股利</option>
           <option value="historical_valuation">歷史估價</option>
         </select></label>
+      </div>
+      <div class="add-stock">
+        <label>新增追蹤股票<input id="newStockId" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="例如 1301"></label>
+        <button class="secondary" id="addStockBtn" type="button">新增股票</button>
       </div>
       <form id="dataForm" class="grid" style="margin-top:18px;"></form>
       <div class="actions"><button id="saveBtn" type="submit" form="dataForm">儲存／覆蓋資料</button><button class="secondary" id="logoutBtn" type="button">登出</button></div>
