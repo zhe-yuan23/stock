@@ -1,4 +1,6 @@
 import sys
+import hmac
+import os
 import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
@@ -6,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Response
 
@@ -19,10 +21,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(REPO_ROOT))
 
 from src.calculator import calculate_valuation  # noqa: E402
+from src.manual_data_service import ManualDataError, ManualDataStore  # noqa: E402
 
 
 DATA_DIR = REPO_ROOT / "data"
 MANUAL_DIR = DATA_DIR / "manual_data"
+MANUAL_DATA_STORE = ManualDataStore(REPO_ROOT)
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()
 
 
 def _to_jsonable(x: Any) -> Any:
@@ -142,6 +147,75 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _require_admin(
+    authorization: Optional[str] = Header(default=None),
+    x_admin_token: Optional[str] = Header(default=None),
+) -> None:
+    """Protect all manual-data reads and writes.
+
+    The token is deliberately checked server-side.  The frontend may ask the
+    owner to enter it, but it must never contain the configured token.
+    """
+    if not ADMIN_TOKEN:
+        raise HTTPException(status_code=503, detail="尚未設定 ADMIN_TOKEN")
+
+    token = x_admin_token
+    if not token and authorization:
+        scheme, _, value = authorization.partition(" ")
+        if scheme.lower() == "bearer":
+            token = value.strip()
+
+    if not token or not hmac.compare_digest(token, ADMIN_TOKEN):
+        raise HTTPException(status_code=401, detail="管理員驗證失敗")
+
+
+@app.get("/api/admin/verify")
+def verify_admin(
+    authorization: Optional[str] = Header(default=None),
+    x_admin_token: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    """Verify the management token before the admin UI loads data."""
+    _require_admin(authorization=authorization, x_admin_token=x_admin_token)
+    return {
+        "ok": True,
+        "storage": MANUAL_DATA_STORE.storage_name,
+        "github_configured": MANUAL_DATA_STORE.uses_github,
+    }
+
+
+@app.get("/api/admin/stocks/{stock_id}/manual")
+def get_manual_data(
+    stock_id: str,
+    authorization: Optional[str] = Header(default=None),
+    x_admin_token: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    _require_admin(authorization=authorization, x_admin_token=x_admin_token)
+    try:
+        return {
+            "stock_id": stock_id,
+            "storage": MANUAL_DATA_STORE.storage_name,
+            "datasets": MANUAL_DATA_STORE.read_all(stock_id),
+        }
+    except ManualDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.put("/api/admin/stocks/{stock_id}/manual/{dataset}")
+def upsert_manual_data(
+    stock_id: str,
+    dataset: str,
+    payload: Dict[str, Any],
+    authorization: Optional[str] = Header(default=None),
+    x_admin_token: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    """Insert or replace one row of a manually maintained dataset."""
+    _require_admin(authorization=authorization, x_admin_token=x_admin_token)
+    try:
+        return MANUAL_DATA_STORE.upsert(stock_id, dataset, payload)
+    except ManualDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/stocks/summary")
@@ -686,4 +760,3 @@ def get_taiex_live() -> Dict[str, Any]:
         "live_drawdown_pct":   _drawdown(live_price, all_time_high),
         "prev_drawdown_pct":   _drawdown(previous_close, all_time_high),
     }
- 
