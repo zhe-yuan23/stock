@@ -153,6 +153,13 @@ app.add_middleware(
 )
 
 
+@app.get("/health")
+@app.get("/api/health")
+def health() -> Dict[str, Any]:
+    """Liveness probe for local tooling and uptime monitors."""
+    return {"ok": True}
+
+
 def _require_admin(
     authorization: Optional[str] = Header(default=None),
     x_admin_token: Optional[str] = Header(default=None),
