@@ -247,7 +247,7 @@ async function loadDetail() {
       valMetrics.appendChild(metricCard(
         'EPS 達成率',
         v.eps_achieve_rate !== null ? `${fmt(v.eps_achieve_rate, 2)} %` : '—',
-        v.eps_ytd !== null ? `累計 EPS：${v.eps_ytd}` : null
+        v.eps_ytd !== null ? `累計 EPS：${fmt(v.eps_ytd, 2)}` : null
       ));
 
       valMetrics.appendChild(metricCard(

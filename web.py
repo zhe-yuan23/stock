@@ -457,7 +457,7 @@ elif st.session_state.view == "📈 個股詳細資料":
                 col7, col8, col9 = st.columns(3)
                 col7.metric("推估總股息", f"{est_dividend:.2f} 元", help=f"近 7 年平均分配率：約 {avg_payout_ratio:.2f} %")
                 col8.metric("推估基本面價", f"{est_fair_price:.2f} 元", help=f"採用近 3 年平均殖利率：約 {avg_yield_3yr:.2f} %")
-                col9.metric("股價波動位階", f"{price_volatility:.2f} %", help="現價佔基本面價的比例")
+                col9.metric("股價波動位階", "—" if price_volatility is None else f"{price_volatility:.2f} %", help="現價佔基本面價的比例")
 
                 st.markdown("---")
 
