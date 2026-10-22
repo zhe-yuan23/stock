@@ -7,6 +7,20 @@ AUTO_DIR = os.path.join(current_dir, "..", "data")
 MANUAL_DIR = os.path.join(current_dir, "..", "data", "manual_data")
 # =================================================
 
+
+def _sorted_rows(df: pd.DataFrame, column: str, *, numeric: bool = False) -> pd.DataFrame:
+    """Return rows sorted by `column` without changing the stored value format."""
+    if column not in df.columns or df.empty:
+        return df
+    keys = pd.to_numeric(df[column], errors="coerce") if numeric else pd.to_datetime(df[column], errors="coerce")
+    return (
+        df.assign(_sort_key=keys)
+        .dropna(subset=["_sort_key"])
+        .sort_values("_sort_key")
+        .drop(columns="_sort_key")
+    )
+
+
 def calculate_valuation(stock_id):
     """
     核心估價計算函式。
@@ -26,6 +40,15 @@ def calculate_valuation(stock_id):
         df_monthly_eps = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_monthly_eps.csv"))
         df_div = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_dividend_history.csv"))
         df_hist_val = pd.read_csv(os.path.join(MANUAL_DIR, stock_id, f"{stock_id}_historical_valuation.csv"))
+
+        # 依日期／年度排序，避免資料被手動補檔或 upsert 後順序錯亂而取到舊值
+        df_price = _sorted_rows(df_price, "Date")
+        df_valuation = _sorted_rows(df_valuation, "Date")
+        df_revenue = _sorted_rows(df_revenue, "date")
+        df_monthly_eps = _sorted_rows(df_monthly_eps, "date")
+        df_yearly_rev = _sorted_rows(df_yearly_rev, "year", numeric=True)
+        df_div = _sorted_rows(df_div, "year", numeric=True)
+        df_hist_val = _sorted_rows(df_hist_val, "year", numeric=True)
 
         # 🔍 2. 提取最新數值
         current_price = df_price.iloc[-1]['price']
@@ -94,7 +117,7 @@ def calculate_valuation(stock_id):
         # 防呆：避免殖利率或推估價為 0
         est_fair_price = (est_dividend / avg_yield_3yr) if avg_yield_3yr > 0 else 0.0
         est_current_yield = (est_dividend / current_price) * 100 if current_price > 0 else 0.0
-        price_volatility = (current_price / est_fair_price) * 100 if est_fair_price > 0 else 0.0
+        price_volatility = (current_price / est_fair_price) * 100 if est_fair_price > 0 else None
 
         # === 📊 本益比／殖利率區間估價（近7年歷史資料） ===
         # df_hv = df_hist_val.tail(7).copy()
@@ -214,7 +237,7 @@ def run_valuation(stock_id):
         print(f"✅ 6. 推估總股息:   {est_dividend:.2f} 元 (7年平均分配率: {avg_payout_ratio:.2f}%)")
         print(f"✅ 7. 推估基本面價: {est_fair_price:.2f} 元 (採用3年平均殖利率: {avg_yield_3yr:.2f}%)")
         print(f"✅ 8. 現價殖利率:   {est_current_yield:.2f} %")
-        print(f"✅ 9. 股價波動位階: {price_volatility:.2f} % (現價佔基本面價的比例)")
+        print(f"✅ 9. 股價波動位階: {'—' if price_volatility is None else f'{price_volatility:.2f} %'} (現價佔基本面價的比例)")
         print("====================================================\n")
 
         # 結論判斷帶上股票名稱

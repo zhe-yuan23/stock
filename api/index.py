@@ -125,6 +125,14 @@ def _list_stock_ids() -> List[str]:
     return load_stock_ids(DATA_DIR)
 
 
+def _valid_stock_id(stock_id: str) -> str:
+    """Reject malformed ids before they are used in file paths or upstream URLs."""
+    try:
+        return normalize_stock_id(stock_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 def _get_stock_name_from_revenue(df_revenue: pd.DataFrame, fallback: str = "") -> str:
     if "name" in df_revenue.columns and not df_revenue.empty:
         try:
@@ -390,6 +398,7 @@ def get_stocks_summary() -> Dict[str, Any]:
 
 @app.get("/api/stocks/{stock_id}/valuation")
 def get_stock_valuation(stock_id: str) -> Dict[str, Any]:
+    stock_id = _valid_stock_id(stock_id)
     try:
         result = calculate_valuation(stock_id)
         return _sanitize_dict(result)
@@ -401,6 +410,7 @@ def get_stock_valuation(stock_id: str) -> Dict[str, Any]:
 
 @app.get("/api/stocks/{stock_id}/detail")
 def get_stock_detail(stock_id: str) -> Dict[str, Any]:
+    stock_id = _valid_stock_id(stock_id)
     revenue_path = DATA_DIR / stock_id / f"{stock_id}_revenue.csv"
     if not revenue_path.exists():
         raise HTTPException(status_code=404, detail=f"Missing file: {revenue_path}")
@@ -500,7 +510,7 @@ def get_live_prices(ids: str = Query(..., description="逗號分隔的股票代�
     import json
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    stock_ids = [s.strip() for s in ids.split(",") if s.strip()]
+    stock_ids = [_valid_stock_id(s) for s in ids.split(",") if s.strip()]
 
     def fetch_one(stock_id: str):
         symbol = f"{stock_id}.TW"
@@ -531,6 +541,7 @@ def get_live_prices(ids: str = Query(..., description="逗號分隔的股票代�
 @app.get("/api/live-price/{stock_id}")
 def get_live_price(stock_id: str) -> Dict[str, Any]:
     """Proxy Yahoo Finance to avoid CORS issues in the browser."""
+    stock_id = _valid_stock_id(stock_id)
     import json
     symbol = f"{stock_id}.TW"
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?interval=1m&range=1d"
@@ -585,6 +596,7 @@ def get_stock_news(
     """
 
     # --- 1. 組合搜尋關鍵字 ---
+    stock_id = _valid_stock_id(stock_id)
     # 如果有提供公司名稱，使用 OR 邏輯同時搜尋代號與名稱，提高召回率
     if name:
         target = f'("{stock_id}" OR "{name}")'
