@@ -102,7 +102,11 @@ def update_daily_data(stock_ids, base_dir="data"):
         for _, row in df_target.iterrows():
             sid = row['Code']
             file_path = os.path.join(base_dir, str(sid), f"{sid}_price.csv")
-            price = float(row['ClosingPrice']) if row['ClosingPrice'] else 0.0
+            raw_price = str(row.get('ClosingPrice', '')).strip()
+            if not raw_price or raw_price == '-':
+                print(f"⚠️ [{sid}] 股價為空，跳過本次寫入")
+                continue
+            price = float(raw_price)
             
             df_save = pd.DataFrame([{'Date': trading_date, 'stock_id': sid, 'name': row.get('Name', ''), 'price': price}])
             if os.path.exists(file_path):
