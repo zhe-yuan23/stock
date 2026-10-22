@@ -1,14 +1,33 @@
 import os
 import pandas as pd
-import requests
 from datetime import datetime
 from pathlib import Path
 try:
     from .stock_registry import load_stock_ids
+    from .update_daily_data import _http_get_json
 except ImportError:
     from stock_registry import load_stock_ids
+    from update_daily_data import _http_get_json
 
 # 月營收
+
+
+def find_missing_months(df: pd.DataFrame) -> list[str]:
+    """Return months missing between the first and last record of each year."""
+    if df.empty or "date" not in df.columns:
+        return []
+
+    dates = pd.to_datetime(df["date"], errors="coerce").dropna().sort_values()
+    if dates.empty:
+        return []
+
+    missing: list[str] = []
+    for year, group in dates.groupby(dates.dt.year):
+        months = sorted(group.dt.month.unique())
+        expected = set(range(months[0], months[-1] + 1))
+        missing.extend(f"{year}-{month:02d}" for month in sorted(expected - set(months)))
+    return missing
+
 
 def update_revenue_data(stock_ids, base_dir="data"):
     """
@@ -26,9 +45,7 @@ def update_revenue_data(stock_ids, base_dir="data"):
     # 2. 只向官方請求「一次」全市場營收總表
     url = 'https://openapi.twse.com.tw/v1/opendata/t187ap05_L'
     try:
-        resp = requests.get(url)
-        resp.raise_for_status() 
-        new_data = resp.json()
+        new_data = _http_get_json(url)
     except Exception as e:
         print(f"❌ 連線出錯: {e}")
         return
@@ -45,6 +62,11 @@ def update_revenue_data(stock_ids, base_dir="data"):
         '累計營業收入-當月累計營收': 'revenue_ytd(bil)',
         '累計營業收入-前期比較增減(%)': 'ytd_yoy(%)'
     }
+
+    missing_columns = set(rename_mapping) - set(df_new.columns)
+    if missing_columns:
+        print(f"❌ 證交所 API 缺少欄位：{', '.join(sorted(missing_columns))}")
+        return
     
     # 只保留 API 有回傳的目標欄位，避免報錯
     available_columns = [col for col in rename_mapping.keys() if col in df_new.columns]
@@ -91,6 +113,30 @@ def update_revenue_data(stock_ids, base_dir="data"):
         # 存檔
         df_final.to_csv(file_path, index=False)
         print(f"✅ [{sid_str}] 營收資料存檔成功")
+
+    report = check_revenue_continuity(stock_ids, base_dir)
+    if report:
+        print("⚠️ 月營收資料有缺漏，請補齊：")
+        for sid, months in report.items():
+            print(f"   - {sid}: {', '.join(months)}")
+
+
+def check_revenue_continuity(stock_ids, base_dir="data") -> dict[str, list[str]]:
+    """Check every revenue CSV, including stocks missing from today's API response."""
+    report: dict[str, list[str]] = {}
+    for sid in stock_ids:
+        path = os.path.join(base_dir, str(sid), f"{sid}_revenue.csv")
+        if not os.path.exists(path):
+            continue
+        try:
+            df = pd.read_csv(path)
+        except Exception as exc:
+            print(f"⚠️ [{sid}] 無法讀取營收資料：{exc}")
+            continue
+        missing = find_missing_months(df)
+        if missing:
+            report[str(sid)] = missing
+    return report
 
 # ================= 當作主程式單獨執行時 =================
 if __name__ == "__main__":
