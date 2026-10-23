@@ -271,10 +271,14 @@
       border-radius: 4px;
       color: var(--text);
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 16px; /* 避免 iOS Safari 聚焦時自動放大 */
       padding: 6px 10px;
       letter-spacing: 0.05em;
       box-sizing: border-box;
+    }
+
+    @media (min-width: 769px) {
+      .stock-search { font-size: 11px; }
     }
 
     .stock-search:focus {
