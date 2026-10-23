@@ -245,17 +245,17 @@ function buildCard(item, index) {
           <div class="price-value card-price-value">${priceDisplay}</div>
           <div class="card-change" style="display:none;font-family:var(--mono);font-size:11px;"></div>
         </div>
+        <div class="card-metrics">
+          <div class="metric-row">
+            <span class="metric-label">波動位階</span>
+            <span class="metric-value card-vol-value">${volDisplay}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">預估殖利率</span>
+            <span class="metric-value card-yield-value">${yieldDisplay}</span>
+          </div>
+        </div>
         ${bandBarHtml}
-      </div>
-    </div>
-    <div class="card-footer">
-      <div class="footer-item">
-        <span class="footer-label">波動位階</span>
-        <span class="footer-value card-vol-value">${volDisplay}</span>
-      </div>
-      <div class="footer-item footer-item-right">
-        <span class="footer-label">預估殖利率</span>
-        <span class="footer-value card-yield-value">${yieldDisplay}</span>
       </div>
     </div>
   `;
