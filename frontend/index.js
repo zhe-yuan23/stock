@@ -23,6 +23,19 @@ function isTradingHours() {
   return (isTradingDay && minutes >= 9 * 60) || isNextMorning;
 }
 
+// 嚴格交易時段：僅用於決定是否顯示 "LIVE PRICE" 標籤
+function isLiveTradingHours() {
+  const param = new URLSearchParams(window.location.search).get('live');
+  if (param === '1') return true;
+  if (param === '0') return false;
+  const now = new Date();
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const day = tw.getDay();
+  const minutes = tw.getHours() * 60 + tw.getMinutes();
+  // 台灣股市交易時段：週一~五 09:00 ~ 13:30
+  return day >= 1 && day <= 5 && minutes >= 9 * 60 && minutes < 13 * 60 + 30;
+}
+
 // ── Fetch live price via backend proxy ──
 async function fetchLivePrice(stockId) {
   try {
@@ -53,9 +66,10 @@ async function fetchAllLivePrices(stockIds) {
 // ── Clock ──
 function updateClock() {
   const now = new Date();
-  const h = String(now.getHours()).padStart(2, '0');
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const s = String(now.getSeconds()).padStart(2, '0');
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const h = String(tw.getHours()).padStart(2, '0');
+  const m = String(tw.getMinutes()).padStart(2, '0');
+  const s = String(tw.getSeconds()).padStart(2, '0');
   $('clock').textContent = `${h}:${m}:${s}`;
 }
 setInterval(updateClock, 1000);
@@ -280,7 +294,7 @@ async function loadSummary() {
       const stockIds = allItems.map(i => i.stock_id);
       const livePrices = await fetchAllLivePrices(stockIds);
       lastLivePrices = livePrices;
-      applyLivePricesToCards(livePrices, allItems);
+      applyLivePricesToCards(livePrices, allItems, isLiveTradingHours());
     }
 
   } catch (err) {
@@ -350,21 +364,21 @@ function isAutoUpdateHours() {
       const stockIds = allItems.map(i => i.stock_id);
       const livePrices = await fetchAllLivePrices(stockIds);
       lastLivePrices = livePrices;
-      applyLivePricesToCards(livePrices, allItems);
+      applyLivePricesToCards(livePrices, allItems, isLiveTradingHours());
       await loadTaiex();
       indicator.style.height = '0';
     }
   }, { passive: true });
 })();
-function applyLivePricesToCards(livePrices, items) {
+function applyLivePricesToCards(livePrices, items, isLive = false) {
   document.querySelectorAll('.card[data-stock-id]').forEach(card => {
     const stockId = card.dataset.stockId;
     const livePrice = livePrices[stockId];
     if (livePrice == null) return;
 
-    // Update price label to LIVE PRICE
+    // Update price label: LIVE PRICE 僅在真正交易時段顯示，否則顯示 LAST PRICE
     const priceLabel = card.querySelector('.price-label');
-    if (priceLabel) priceLabel.textContent = 'LIVE PRICE';
+    if (priceLabel) priceLabel.textContent = isLive ? 'LIVE PRICE' : 'LAST PRICE';
 
     // Update price display
     const priceEl = card.querySelector('.card-price-value');
