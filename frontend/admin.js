@@ -97,7 +97,14 @@ async function loadManualData() {
   const data = await request(`/api/admin/stocks/${encodeURIComponent(stockId)}/manual`);
   currentRecords = data.datasets || {};
   $('storageLabel').textContent = `儲存方式：${data.storage}`;
+  setSaveFlowHint(data.storage);
   renderRecords();
+}
+
+function setSaveFlowHint(storage) {
+  $('saveFlowHint').textContent = storage === 'github'
+    ? '儲存後會自動 commit 到 GitHub；Vercel 重新部署（約 1–2 分鐘）後，首頁與個股頁才會更新。'
+    : '本機模式：儲存後重新整理頁面即可看到更新。';
 }
 
 async function login() {
@@ -116,7 +123,7 @@ async function login() {
     await loadManualData();
     $('storageLabel').textContent = `儲存方式：${info.storage}`;
   } catch (error) {
-    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     setMessage('loginMessage', error.message, 'error');
   } finally { $('loginBtn').disabled = false; }
 }
@@ -137,7 +144,8 @@ async function save(event) {
   setMessage('saveMessage', '儲存中……');
   try {
     const result = await request(`/api/admin/stocks/${encodeURIComponent($('stockSelect').value)}/manual/${dataset}`, { method: 'PUT', body: JSON.stringify(payload) });
-    setMessage('saveMessage', `已儲存 ${result.key}（${result.storage}）`, 'success');
+    const deployNote = result.storage === 'github' ? '，Vercel 部署後生效' : '';
+    setMessage('saveMessage', `已儲存 ${result.key}（${result.storage}）${deployNote}`, 'success');
     $('dataForm').reset();
     await loadManualData();
   } catch (error) { setMessage('saveMessage', error.message, 'error'); }
