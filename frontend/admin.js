@@ -25,6 +25,13 @@ const DATASET_FIELDS = {
   ],
 };
 
+const DATASET_HINTS = {
+  monthly_eps: '資料來源：每月查新聞（金控自結盈餘）；一般到損益表切換「單季／累計」標籤核對。',
+  yearly_revenue: '資料來源：損益表 → 營業收入（填前一年度）。',
+  dividend_history: '資料來源：查股利政策，可搭配財務比率表；至少補滿 7 年。',
+  historical_valuation: '最低／最高本益比：本益比河流圖；年殖利率：查股利政策。兩者都至少 7 年。',
+};
+
 const $ = id => document.getElementById(id);
 let currentRecords = {};
 
@@ -66,6 +73,7 @@ async function loadStocks() {
 
 function renderForm() {
   const dataset = $('datasetSelect').value;
+  $('datasetHint').textContent = DATASET_HINTS[dataset] || '';
   $('dataForm').innerHTML = DATASET_FIELDS[dataset].map(field => `
     <label>${field.label}<input required name="${field.name}" type="${field.type}" step="${field.step || ''}" min="${field.min || ''}" max="${field.max || ''}"></label>
   `).join('');
