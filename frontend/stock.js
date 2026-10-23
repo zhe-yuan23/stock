@@ -121,16 +121,10 @@ function compareValues(av, bv) {
 }
 
 function updateSortIndicators() {
-  const applyIndicator = el => {
-    const isActive = el.dataset.sort === _tableSort.key;
-    el.textContent = el.textContent.replace(/[▲▼]\s*$/, '').trim();
-    if (isActive) el.textContent += _tableSort.desc ? ' ▼' : ' ▲';
-    return isActive;
-  };
-  document.querySelectorAll('th[data-sort]').forEach(applyIndicator);
-  document.querySelectorAll('.table-sort-bar button[data-sort]').forEach(btn => {
-    const isActive = applyIndicator(btn);
-    btn.classList.toggle('active', isActive);
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    const isActive = th.dataset.sort === _tableSort.key;
+    th.textContent = th.textContent.replace(/[▲▼]\s*$/, '').trim();
+    if (isActive) th.textContent += _tableSort.desc ? ' ▼' : ' ▲';
   });
 }
 
@@ -215,13 +209,9 @@ async function loadDetail() {
       $('heroPE').textContent = v.current_pe !== null ? `${fmt(v.current_pe, 2)} 倍` : '—';
       const achieveRate = data.metrics?.revenue_achieve_rate;
       const achieveEl = $('heroAchieve');
-      if (achieveRate !== null) {
-        achieveEl.textContent = `${fmt(achieveRate, 1)} %`;
-        achieveEl.className = `hero-kpi-value ${achieveClass(achieveRate)}`;
-      } else {
-        achieveEl.textContent = '—';
-        achieveEl.className = 'hero-kpi-value gray';
-      }
+      const hasRate = achieveRate !== null && achieveRate !== undefined && Number.isFinite(Number(achieveRate));
+      achieveEl.textContent = hasRate ? `${fmt(achieveRate, 1)} %` : '—';
+      achieveEl.className = `hero-kpi-value ${achieveClass(achieveRate)}`;
       $('heroVolatility').textContent = v.price_volatility !== null ? `${fmt(v.price_volatility, 2)} %` : '—';
       $('heroYield').textContent = v.est_current_yield !== null ? `${fmt(v.est_current_yield, 2)} %` : '—';
       $('heroDate').textContent = latestDate || '—';
