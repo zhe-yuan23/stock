@@ -292,6 +292,8 @@
     .toolbar-right {
       display: flex;
       align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
       gap: 8px;
     }
 
@@ -365,7 +367,7 @@
     .card.bg-none  .card-accent-bar { background: var(--border); }
 
     .card-body {
-      padding: 12px 14px 10px;
+      padding: 12px 14px 8px;
       display: flex;
       justify-content: space-between;
       gap: 10px;
@@ -467,23 +469,41 @@
       margin-left: 2px;
     }
 
-    .volatility-wrap {
-      text-align: right;
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+      flex-wrap: wrap;
+      padding: 6px 14px 8px;
+      border-top: 1px solid var(--border);
+      font-family: var(--mono);
     }
 
-    .volatility-label {
-      font-family: var(--mono);
+    .footer-item {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .footer-item-right { margin-left: auto; }
+
+    .footer-label {
       font-size: 10px;
       color: var(--muted);
       letter-spacing: 0.06em;
+      white-space: nowrap;
     }
 
-    .volatility-value {
-      font-family: var(--mono);
-      font-size: 13px;
+    .footer-value {
+      font-size: 12px;
       font-weight: 700;
       color: var(--gold);
+      white-space: nowrap;
     }
+
+    .footer-value.card-yield-value { color: var(--accent); }
 
     /* ── LOADING ── */
     .loading-screen {
@@ -694,6 +714,7 @@
     <button class="sort-btn active" id="sortAchieve" onclick="sortBy('achieve')">達成率↓</button>
     <button class="sort-btn" id="sortPrice" onclick="sortBy('price')">股價</button>
     <button class="sort-btn" id="sortVolatility" onclick="sortBy('vol')">波動位階↓</button>
+    <button class="sort-btn" id="sortYield" onclick="sortBy('yield')">殖利率↓</button>
   </div>
 </div>
 

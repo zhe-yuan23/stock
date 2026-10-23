@@ -112,8 +112,8 @@ let searchQuery = '';
 
 function sortBy(key) {
   currentSort = key;
-  ['sortAchieve', 'sortPrice', 'sortVolatility'].forEach(id => $( id) && $( id).classList.remove('active'));
-  const btnMap = { achieve: 'sortAchieve', price: 'sortPrice', vol: 'sortVolatility' };
+  ['sortAchieve', 'sortPrice', 'sortVolatility', 'sortYield'].forEach(id => $(id) && $(id).classList.remove('active'));
+  const btnMap = { achieve: 'sortAchieve', price: 'sortPrice', vol: 'sortVolatility', yield: 'sortYield' };
   if ($(btnMap[key])) $(btnMap[key]).classList.add('active');
 
   const sorted = [...allItems].sort((a, b) => {
@@ -131,6 +131,11 @@ function sortBy(key) {
       const av = a.price_volatility ?? -1;
       const bv = b.price_volatility ?? -1;
       return bv - av; // higher volatility = expensive = at first
+    }
+    if (key === 'yield') {
+      const av = a.est_current_yield ?? -1;
+      const bv = b.est_current_yield ?? -1;
+      return bv - av; // higher yield = at first
     }
     return 0;
   });
@@ -166,6 +171,8 @@ function buildCard(item, index) {
     ? `${fmt(item.current_price, 2)}<span class="price-unit">元</span>`
     : '—';
   const volDisplay = vol !== null && vol !== undefined ? `${fmt(vol, 2)} %` : '—';
+  const yieldVal = item.est_current_yield;
+  const yieldDisplay = yieldVal !== null && yieldVal !== undefined ? `${fmt(yieldVal, 2)} %` : '—';
   const monthText = item.update_month ? `更新至 ${item.update_month}` : '尚未公布';
   const statusClass = item.is_latest ? 'latest' : 'pending';
   const statusText = item.is_latest ? '▲ 最新月份' : '◌ 待更新';
@@ -238,11 +245,17 @@ function buildCard(item, index) {
           <div class="price-value card-price-value">${priceDisplay}</div>
           <div class="card-change" style="display:none;font-family:var(--mono);font-size:11px;"></div>
         </div>
-        <div class="volatility-wrap">
-          <div class="volatility-label">波動位階</div>
-          <div class="volatility-value card-vol-value">${volDisplay}</div>
-        </div>
         ${bandBarHtml}
+      </div>
+    </div>
+    <div class="card-footer">
+      <div class="footer-item">
+        <span class="footer-label">波動位階</span>
+        <span class="footer-value card-vol-value">${volDisplay}</span>
+      </div>
+      <div class="footer-item footer-item-right">
+        <span class="footer-label">預估殖利率</span>
+        <span class="footer-value card-yield-value">${yieldDisplay}</span>
       </div>
     </div>
   `;
@@ -419,6 +432,14 @@ function applyLivePricesToCards(livePrices, items, isLive = false) {
       const newVol = (livePrice / fairPrice) * 100;
       const volEl = card.querySelector('.card-vol-value');
       if (volEl) volEl.textContent = `${fmt(newVol, 2)} %`;
+    }
+
+    // Recalculate estimated yield with live price (殖利率與股價成反比)
+    const yieldEl = card.querySelector('.card-yield-value');
+    const baseYield = item.est_current_yield;
+    if (yieldEl && baseYield !== null && baseYield !== undefined && item.current_price && livePrice > 0) {
+      const newYield = Number(baseYield) * (Number(item.current_price) / livePrice);
+      if (Number.isFinite(newYield)) yieldEl.textContent = `${fmt(newYield, 2)} %`;
     }
 
     // Update band bar marker position
