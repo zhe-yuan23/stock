@@ -263,6 +263,25 @@
       letter-spacing: 0.05em;
     }
 
+    .stock-search {
+      width: 100%;
+      max-width: 260px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 6px 10px;
+      letter-spacing: 0.05em;
+      box-sizing: border-box;
+    }
+
+    .stock-search:focus {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
+    }
+
     .toolbar-right {
       display: flex;
       align-items: center;
@@ -647,10 +666,10 @@
 </header>
 
 <!-- ── TAIEX BANNER：加權指數警示列 ── -->
-<div class="taiex-banner" id="taiexBanner" style="display:none;">
+<div class="taiex-banner" id="taiexBanner">
   <span class="taiex-label">加權指數</span>
   <span class="taiex-close" id="taiexClose">—</span>
-  <span class="taiex-drawdown" id="taiexDrawdown">—</span>
+  <span class="taiex-drawdown" id="taiexDrawdown">載入中...</span>
   <span class="taiex-ath" id="taiexAth"></span>
   <span class="taiex-alert-badge" id="taiexAlertBadge">⚠ 距歷史高點 -10% 以上</span>
   <span class="taiex-date" id="taiexDate"></span>
@@ -660,6 +679,9 @@
   <div class="toolbar-left">
     <div class="year-label"><span id="targetYear">----</span> 年度 <span style="color:var(--muted2);font-size:13px;">/ 營收達成率總覽</span></div>
     <div class="sub-label" id="subLabel">LOADING DATA...</div>
+    <div class="search-wrap" style="margin-top:8px;">
+      <input type="search" id="stockSearch" placeholder="搜尋股票代號或名稱" class="stock-search">
+    </div>
   </div>
   <div class="toolbar-right">
     <button class="sort-btn active" id="sortAchieve" onclick="sortBy('achieve')">達成率↓</button>

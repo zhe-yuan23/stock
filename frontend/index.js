@@ -108,6 +108,7 @@ function cardBgClass(vol) {
 let allItems = [];
 let currentSort = 'achieve';
 let lastLivePrices = {};
+let searchQuery = '';
 
 function sortBy(key) {
   currentSort = key;
@@ -212,6 +213,8 @@ function buildCard(item, index) {
   card.className = `card ${cardBgClass(vol)}`;
   card.style.animationDelay = `${index * 40}ms`;
   card.dataset.stockId = item.stock_id;
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
 
   card.innerHTML = `
     <div class="card-accent-bar"></div>
@@ -255,11 +258,16 @@ function buildCard(item, index) {
 function renderCards(items) {
   const grid = $('grid');
   grid.innerHTML = '';
-  if (!items.length) {
-    grid.innerHTML = '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px;">NO DATA AVAILABLE</div>';
+  const q = searchQuery.toLowerCase();
+  const filtered = items.filter(item =>
+    item.stock_id.toLowerCase().includes(q) ||
+    (item.company_name_short || '').toLowerCase().includes(q)
+  );
+  if (!filtered.length) {
+    grid.innerHTML = '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px;">NO MATCHING DATA</div>';
     return;
   }
-  items.forEach((item, i) => grid.appendChild(buildCard(item, i)));
+  filtered.forEach((item, i) => grid.appendChild(buildCard(item, i)));
 }
 
 // ── Fetch ──
@@ -299,7 +307,10 @@ async function loadSummary() {
 
   } catch (err) {
     console.error(err);
-    $('loading').innerHTML = `<div class="loading-text" style="color:var(--red);">ERROR: ${err?.message || err}</div>`;
+    $('loading').innerHTML = `
+      <div class="loading-text" style="color:var(--red);">ERROR: ${err?.message || err}</div>
+      <button class="sort-btn" onclick="loadSummary()" style="margin-top:10px;">重試</button>
+    `;
   }
 }
 
@@ -527,11 +538,19 @@ async function loadTaiex() {
       });
     }
   } catch {
-    // 靜默失敗，不影響主頁面
+    $('taiexBanner').style.display = 'flex';
+    $('taiexDrawdown').textContent = '資料載入失敗';
+    $('taiexDrawdown').className = 'taiex-drawdown alert';
+    $('taiexDate').textContent = '';
   }
 }
- 
+
 loadTaiex();
+
+$('stockSearch').addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  sortBy(currentSort);
+});
  
 // 交易時間內每分鐘重新抓一次
 // setInterval(() => {
