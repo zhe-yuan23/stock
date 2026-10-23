@@ -120,6 +120,14 @@ function compareValues(av, bv) {
   return sa.localeCompare(sb, undefined, { numeric: true });
 }
 
+function updateSortIndicators() {
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    const isActive = th.dataset.sort === _tableSort.key;
+    th.textContent = th.textContent.replace(/[▲▼]\s*$/, '').trim();
+    if (isActive) th.textContent += _tableSort.desc ? ' ▼' : ' ▲';
+  });
+}
+
 function sortTable(key) {
   if (_tableSort.key === key) {
     _tableSort.desc = !_tableSort.desc;
@@ -137,7 +145,14 @@ function sortTable(key) {
     return _tableSort.desc ? -cmp : cmp;
   });
   renderTable(sorted);
+  updateSortIndicators();
 }
+
+// 事件委派：點擊表頭排序（避免 inline onclick 在部分環境失效）
+document.addEventListener('click', (e) => {
+  const th = e.target.closest('th[data-sort]');
+  if (th) sortTable(th.dataset.sort);
+});
 
 function metricCard(label, value, helpText = null) {
   const el = document.createElement('div');
@@ -287,6 +302,7 @@ async function loadDetail() {
     // ── Table ──
     _tableRows = (data.table_rows || []).slice(); // latest first .reverse()
     renderTable(_tableRows);
+    updateSortIndicators();
 
     // ── Valuation metrics ──
     const valMetrics = $('valuationMetrics');

@@ -351,6 +351,10 @@
       background: rgba(255,255,255,0.02);
       position: sticky;
       top: 0;
+      z-index: 2;
+      cursor: pointer;
+      user-select: none;
+      pointer-events: auto;
     }
 
     td:first-child, th:first-child { text-align: left; }
@@ -659,11 +663,11 @@
             <table>
               <thead>
                 <tr>
-                  <th onclick="sortTable('date')" style="cursor:pointer;">日期</th>
-                  <th onclick="sortTable('revenue_mon_bil')" style="cursor:pointer;">月收(億)</th>
-                  <th onclick="sortTable('yoy_percent')" style="cursor:pointer;">月年增率 %</th>
-                  <th onclick="sortTable('revenue_ytd_bil')" style="cursor:pointer;">累計(億)</th>
-                  <th onclick="sortTable('ytd_yoy_percent')" style="cursor:pointer;">累計年增率 %</th>
+                  <th data-sort="date">日期</th>
+                  <th data-sort="revenue_mon_bil">月收(億)</th>
+                  <th data-sort="yoy_percent">月年增率 %</th>
+                  <th data-sort="revenue_ytd_bil">累計(億)</th>
+                  <th data-sort="ytd_yoy_percent">累計年增率 %</th>
                 </tr>
               </thead>
               <tbody id="tableBody"></tbody>
