@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>睡得著的投資 - 個股</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
@@ -44,6 +44,8 @@
       font-family: var(--sans);
       min-height: 100vh;
       overflow-x: hidden;
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
 
     body::before {
@@ -66,10 +68,11 @@
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       padding: 0 20px;
+      padding-top: env(safe-area-inset-top);
       display: flex;
       align-items: center;
       gap: 12px;
-      height: 52px;
+      height: calc(52px + env(safe-area-inset-top));
       position: sticky;
       top: 0;
       z-index: 100;
