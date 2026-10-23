@@ -75,17 +75,13 @@ function renderForm() {
 function renderRecords() {
   const dataset = $('datasetSelect').value;
   const fields = DATASET_FIELDS[dataset];
-  const key = DATASET_FIELDS[dataset][0].name;
+  const key = fields[0].name;
   const rows = (currentRecords[dataset] || []).slice().sort((a, b) =>
     String(b[key] ?? '').localeCompare(String(a[key] ?? ''), 'en', { numeric: true })
   );
   $('recordsPanel').style.display = 'block';
-  const key = fields[0].name;
-  $('recordsHead').innerHTML = `<tr>${fields.map(field => `<th>${field.label}</th>`).join('')}<th style="width:110px;">操作</th></tr>`;
-  $('recordsBody').innerHTML = rows.map(row => {
-    const cells = fields.map(field => `<td>${escapeHtml(row[field.name])}</td>`).join('');
-    return `<tr>${cells}<td><button onclick="deleteRecord('${dataset}', '${escapeHtml(String(row[key] ?? ''))}')" class="secondary" style="width:auto;padding:6px 10px;">刪除</button></td></tr>`;
-  }).join('') || '<tr><td colspan="11">尚無資料</td></tr>';
+  $('recordsHead').innerHTML = `<tr>${fields.map(field => `<th>${field.label}</th>`).join('')}</tr>`;
+  $('recordsBody').innerHTML = rows.map(row => `<tr>${fields.map(field => `<td>${escapeHtml(row[field.name])}</td>`).join('')}</tr>`).join('') || '<tr><td colspan="10">尚無資料</td></tr>';
 }
 
 async function loadManualData() {
@@ -160,44 +156,6 @@ async function addStock() {
 }
 
 function logout() { localStorage.removeItem(TOKEN_KEY); window.location.reload(); }
-
-// 刪除單筆手動資料（需後端對應 DELETE 端點）
-async function deleteRecord(dataset, keyValue) {
-  if (!confirm(`確定要刪除 ${dataset} 的 ${keyValue} 嗎？`)) return;
-  try {
-    await request(`/api/admin/stocks/${encodeURIComponent($('stockSelect').value)}/manual/${dataset}`, {
-      method: 'DELETE',
-      body: JSON.stringify({ [DATASET_FIELDS[dataset][0].name]: keyValue })
-    });
-    setMessage('saveMessage', '已刪除', 'success');
-    await loadManualData();
-  } catch (error) {
-    setMessage('saveMessage', '刪除失敗：' + error.message, 'error');
-  }
-}
-
-// 匯出目前資料為 CSV
-function exportCSV(dataset) {
-  const fields = DATASET_FIELDS[dataset];
-  const rows = (currentRecords[dataset] || []);
-  if (!rows.length) return setMessage('saveMessage', '無資料可匯出', 'error');
-  const header = fields.map(f => f.label).join(',');
-  const lines = rows.map(row =>
-    fields.map(f => {
-      const v = String(row[f.name] ?? '').replace(/"/g, '""');
-      return `"${v}"`;
-    }).join(',')
-  );
-  const csv = [header, ...lines].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${dataset}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  setMessage('saveMessage', `已匯出 ${dataset}.csv`, 'success');
-}
 
 $('apiBase').value = localStorage.getItem(API_KEY) || '';
 $('loginBtn').addEventListener('click', login);

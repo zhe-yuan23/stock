@@ -87,42 +87,6 @@ function achieveClass(rate) {
   return 'blue';
 }
 
-// ── Table sort state ──
-let _tableRows = [];
-let _tableSort = { key: 'date', desc: true };
-
-function renderTable(rows) {
-  const tbody = $('tableBody');
-  tbody.innerHTML = '';
-  for (const row of rows) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${row.date ? row.date.slice(0, 7) : '—'}</td>
-      <td>${row.revenue_mon_bil !== null ? fmt(row.revenue_mon_bil) : '—'}</td>
-      <td style="color:${(row.yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.yoy_percent !== null ? fmtPct(row.yoy_percent) : '—'}</td>
-      <td>${row.revenue_ytd_bil !== null ? fmt(row.revenue_ytd_bil) : '—'}</td>
-      <td style="color:${(row.ytd_yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.ytd_yoy_percent !== null ? fmtPct(row.ytd_yoy_percent) : '—'}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-}
-
-function sortTable(key) {
-  if (_tableSort.key === key) {
-    _tableSort.desc = !_tableSort.desc;
-  } else {
-    _tableSort.key = key;
-    _tableSort.desc = true;
-  }
-  const sorted = [..._tableRows].sort((a, b) => {
-    const av = a[key] ?? '';
-    const bv = b[key] ?? '';
-    const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
-    return _tableSort.desc ? -cmp : cmp;
-  });
-  renderTable(sorted);
-}
-
 function metricCard(label, value, helpText = null) {
   const el = document.createElement('div');
   el.className = 'metric-card fade-in';
@@ -269,8 +233,20 @@ async function loadDetail() {
     });
 
     // ── Table ──
-    _tableRows = (data.table_rows || []).slice();
-    renderTable(_tableRows);
+    const tbody = $('tableBody');
+    tbody.innerHTML = '';
+    const rows = (data.table_rows || []).slice(); // latest first .reverse()
+    for (const row of rows) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.date ? row.date.slice(0, 7) : '—'}</td>
+        <td>${row.revenue_mon_bil !== null ? fmt(row.revenue_mon_bil) : '—'}</td>
+        <td style="color:${(row.yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.yoy_percent !== null ? fmtPct(row.yoy_percent) : '—'}</td>
+        <td>${row.revenue_ytd_bil !== null ? fmt(row.revenue_ytd_bil) : '—'}</td>
+        <td style="color:${(row.ytd_yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.ytd_yoy_percent !== null ? fmtPct(row.ytd_yoy_percent) : '—'}</td>
+      `;
+      tbody.appendChild(tr);
+    }
 
     // ── Valuation metrics ──
     const valMetrics = $('valuationMetrics');
