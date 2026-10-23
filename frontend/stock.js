@@ -364,6 +364,7 @@ async function loadDetail() {
         <div class="section-title">📐 本益比／殖利率區間估價</div>
         <div class="section-line"></div>
       </div>
+      <div class="section-note">同一組推估 EPS／股利，套用近 7 年本益比與殖利率區間，算出「便宜～昂貴」的範圍。</div>
     `;
     $('content').appendChild(bandSection);
 
