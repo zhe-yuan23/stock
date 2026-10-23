@@ -322,6 +322,38 @@
     }
 
     /* ── TABLE ── */
+    .table-sort-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .table-sort-bar button {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      color: var(--muted2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .table-sort-bar button:hover {
+      border-color: var(--accent2);
+      color: var(--accent);
+    }
+
+    .table-sort-bar button.active {
+      color: var(--accent);
+      border-color: var(--accent2);
+      background: var(--border2);
+    }
+
     .table-wrap {
       overflow-x: auto;
       overflow-y: auto;
@@ -659,6 +691,13 @@
         </div>
         <!-- Table tab -->
         <div id="tabPaneTable" style="display:none;">
+          <div class="table-sort-bar">
+            <button type="button" data-sort="date">日期</button>
+            <button type="button" data-sort="revenue_mon_bil">月收(億)</button>
+            <button type="button" data-sort="yoy_percent">月年增率 %</button>
+            <button type="button" data-sort="revenue_ytd_bil">累計(億)</button>
+            <button type="button" data-sort="ytd_yoy_percent">累計年增率 %</button>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>

@@ -121,10 +121,16 @@ function compareValues(av, bv) {
 }
 
 function updateSortIndicators() {
-  document.querySelectorAll('th[data-sort]').forEach(th => {
-    const isActive = th.dataset.sort === _tableSort.key;
-    th.textContent = th.textContent.replace(/[▲▼]\s*$/, '').trim();
-    if (isActive) th.textContent += _tableSort.desc ? ' ▼' : ' ▲';
+  const applyIndicator = el => {
+    const isActive = el.dataset.sort === _tableSort.key;
+    el.textContent = el.textContent.replace(/[▲▼]\s*$/, '').trim();
+    if (isActive) el.textContent += _tableSort.desc ? ' ▼' : ' ▲';
+    return isActive;
+  };
+  document.querySelectorAll('th[data-sort]').forEach(applyIndicator);
+  document.querySelectorAll('.table-sort-bar button[data-sort]').forEach(btn => {
+    const isActive = applyIndicator(btn);
+    btn.classList.toggle('active', isActive);
   });
 }
 
@@ -148,10 +154,10 @@ function sortTable(key) {
   updateSortIndicators();
 }
 
-// 事件委派：點擊表頭排序（避免 inline onclick 在部分環境失效）
+// 事件委派：點擊表頭或排序按鈕（避免 inline onclick 在部分環境失效）
 document.addEventListener('click', (e) => {
-  const th = e.target.closest('th[data-sort]');
-  if (th) sortTable(th.dataset.sort);
+  const el = e.target.closest('[data-sort]');
+  if (el) sortTable(el.dataset.sort);
 });
 
 function metricCard(label, value, helpText = null) {
