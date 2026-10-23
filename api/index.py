@@ -299,6 +299,7 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "band_mid": None,
                     "band_high": None,
                     "est_fair_price": None,
+                    "est_current_yield": None,
                     "is_latest": False,
                     "has_data": False,
                 }
@@ -315,6 +316,7 @@ def get_stocks_summary() -> Dict[str, Any]:
         band_mid = None
         band_high = None
         est_fair_price = None
+        est_current_yield = None
         try:
             valuation_result = calculate_valuation(sid)
             price_volatility = valuation_result.get("price_volatility")
@@ -323,6 +325,7 @@ def get_stocks_summary() -> Dict[str, Any]:
             band_mid = valuation_result.get("band_mid")
             band_high = valuation_result.get("band_high")
             est_fair_price = valuation_result.get("est_fair_price")
+            est_current_yield = valuation_result.get("est_current_yield")
         except Exception:
             pass
 
@@ -357,6 +360,7 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "band_mid": band_mid,
                     "band_high": band_high,
                     "est_fair_price": est_fair_price,
+                    "est_current_yield": est_current_yield,
                     "is_latest": False,
                     "has_data": revenue_achieve_rate is not None,
                 }
@@ -376,6 +380,7 @@ def get_stocks_summary() -> Dict[str, Any]:
                     "band_mid": band_mid,
                     "band_high": band_high,
                     "est_fair_price": est_fair_price,
+                    "est_current_yield": est_current_yield,
                     "is_latest": False,
                     "has_data": False,
                 }

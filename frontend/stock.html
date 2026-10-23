@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>睡得著的投資 - 個股</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
@@ -43,6 +43,9 @@
       color: var(--text);
       font-family: var(--sans);
       min-height: 100vh;
+      overflow-x: hidden;
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
 
     body::before {
@@ -65,10 +68,11 @@
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       padding: 0 20px;
+      padding-top: env(safe-area-inset-top);
       display: flex;
       align-items: center;
       gap: 12px;
-      height: 52px;
+      height: calc(52px + env(safe-area-inset-top));
       position: sticky;
       top: 0;
       z-index: 100;
@@ -218,10 +222,13 @@
       color: var(--text);
     }
 
-    .hero-kpi-value.green { color: var(--green); }
-    .hero-kpi-value.red   { color: var(--red); }
-    .hero-kpi-value.gold  { color: var(--gold); }
+    .hero-kpi-value.green  { color: var(--green); }
+    .hero-kpi-value.red    { color: var(--red); }
+    .hero-kpi-value.gold   { color: var(--gold); }
     .hero-kpi-value.accent { color: var(--accent); }
+    .hero-kpi-value.orange { color: var(--orange); }
+    .hero-kpi-value.blue   { color: var(--accent); }
+    .hero-kpi-value.gray   { color: var(--muted2); }
 
     /* ── MAIN LAYOUT ── */
     .wrap { padding: 16px 20px 40px; }
@@ -247,6 +254,20 @@
       flex: 1;
       height: 1px;
       background: var(--border);
+    }
+
+    .section-note {
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 1.6;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      margin: -4px 0 10px;
+    }
+
+    .section-note strong {
+      color: var(--muted2);
+      font-weight: 700;
     }
 
     /* ── METRICS GRID ── */
@@ -351,6 +372,10 @@
       background: rgba(255,255,255,0.02);
       position: sticky;
       top: 0;
+      z-index: 2;
+      cursor: pointer;
+      user-select: none;
+      pointer-events: auto;
     }
 
     td:first-child, th:first-child { text-align: left; }
@@ -659,11 +684,11 @@
             <table>
               <thead>
                 <tr>
-                  <th>日期</th>
-                  <th>月收(億)</th>
-                  <th>月年增率 %</th>
-                  <th>累計(億)</th>
-                  <th>累計年增率 %</th>
+                  <th data-sort="date">日期</th>
+                  <th data-sort="revenue_mon_bil">月收(億)</th>
+                  <th data-sort="yoy_percent">月年增率 %</th>
+                  <th data-sort="revenue_ytd_bil">累計(億)</th>
+                  <th data-sort="ytd_yoy_percent">累計年增率 %</th>
                 </tr>
               </thead>
               <tbody id="tableBody"></tbody>
@@ -678,6 +703,7 @@
       <div class="section-title">💰 基本面估價</div>
       <div class="section-line"></div>
     </div>
+    <div class="section-note"><strong>這家公司值多少</strong>：推估 EPS／股利 ÷ 3 年平均殖利率，算出合理價與目前位階。</div>
     <div class="metrics-grid" id="valuationMetrics"></div>
 
     <!-- Conclusion -->

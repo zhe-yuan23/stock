@@ -23,6 +23,19 @@ function isTradingHours() {
   return (isTradingDay && minutes >= 9 * 60) || isNextMorning;
 }
 
+// 嚴格交易時段：僅用於決定是否顯示 "LIVE PRICE" 標籤
+function isLiveTradingHours() {
+  const param = new URLSearchParams(window.location.search).get('live');
+  if (param === '1') return true;
+  if (param === '0') return false;
+  const now = new Date();
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const day = tw.getDay();
+  const minutes = tw.getHours() * 60 + tw.getMinutes();
+  // 台灣股市交易時段：週一~五 09:00 ~ 13:30
+  return day >= 1 && day <= 5 && minutes >= 9 * 60 && minutes < 13 * 60 + 30;
+}
+
 // ── Fetch live price via backend proxy ──
 async function fetchLivePrice(stockId) {
   try {
@@ -53,9 +66,10 @@ async function fetchAllLivePrices(stockIds) {
 // ── Clock ──
 function updateClock() {
   const now = new Date();
-  const h = String(now.getHours()).padStart(2, '0');
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const s = String(now.getSeconds()).padStart(2, '0');
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const h = String(tw.getHours()).padStart(2, '0');
+  const m = String(tw.getMinutes()).padStart(2, '0');
+  const s = String(tw.getSeconds()).padStart(2, '0');
   $('clock').textContent = `${h}:${m}:${s}`;
 }
 setInterval(updateClock, 1000);
@@ -94,11 +108,12 @@ function cardBgClass(vol) {
 let allItems = [];
 let currentSort = 'achieve';
 let lastLivePrices = {};
+let searchQuery = '';
 
 function sortBy(key) {
   currentSort = key;
-  ['sortAchieve', 'sortPrice', 'sortVolatility'].forEach(id => $( id) && $( id).classList.remove('active'));
-  const btnMap = { achieve: 'sortAchieve', price: 'sortPrice', vol: 'sortVolatility' };
+  ['sortAchieve', 'sortPrice', 'sortVolatility', 'sortYield'].forEach(id => $(id) && $(id).classList.remove('active'));
+  const btnMap = { achieve: 'sortAchieve', price: 'sortPrice', vol: 'sortVolatility', yield: 'sortYield' };
   if ($(btnMap[key])) $(btnMap[key]).classList.add('active');
 
   const sorted = [...allItems].sort((a, b) => {
@@ -116,6 +131,11 @@ function sortBy(key) {
       const av = a.price_volatility ?? -1;
       const bv = b.price_volatility ?? -1;
       return bv - av; // higher volatility = expensive = at first
+    }
+    if (key === 'yield') {
+      const av = a.est_current_yield ?? -1;
+      const bv = b.est_current_yield ?? -1;
+      return bv - av; // higher yield = at first
     }
     return 0;
   });
@@ -151,6 +171,8 @@ function buildCard(item, index) {
     ? `${fmt(item.current_price, 2)}<span class="price-unit">元</span>`
     : '—';
   const volDisplay = vol !== null && vol !== undefined ? `${fmt(vol, 2)} %` : '—';
+  const yieldVal = item.est_current_yield;
+  const yieldDisplay = yieldVal !== null && yieldVal !== undefined ? `${fmt(yieldVal, 2)} %` : '—';
   const monthText = item.update_month ? `更新至 ${item.update_month}` : '尚未公布';
   const statusClass = item.is_latest ? 'latest' : 'pending';
   const statusText = item.is_latest ? '▲ 最新月份' : '◌ 待更新';
@@ -198,6 +220,8 @@ function buildCard(item, index) {
   card.className = `card ${cardBgClass(vol)}`;
   card.style.animationDelay = `${index * 40}ms`;
   card.dataset.stockId = item.stock_id;
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
 
   card.innerHTML = `
     <div class="card-accent-bar"></div>
@@ -221,9 +245,15 @@ function buildCard(item, index) {
           <div class="price-value card-price-value">${priceDisplay}</div>
           <div class="card-change" style="display:none;font-family:var(--mono);font-size:11px;"></div>
         </div>
-        <div class="volatility-wrap">
-          <div class="volatility-label">波動位階</div>
-          <div class="volatility-value card-vol-value">${volDisplay}</div>
+        <div class="card-metrics">
+          <div class="metric-row">
+            <span class="metric-label">波動位階</span>
+            <span class="metric-value card-vol-value">${volDisplay}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">預估殖利率</span>
+            <span class="metric-value card-yield-value">${yieldDisplay}</span>
+          </div>
         </div>
         ${bandBarHtml}
       </div>
@@ -241,11 +271,16 @@ function buildCard(item, index) {
 function renderCards(items) {
   const grid = $('grid');
   grid.innerHTML = '';
-  if (!items.length) {
-    grid.innerHTML = '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px;">NO DATA AVAILABLE</div>';
+  const q = searchQuery.toLowerCase();
+  const filtered = items.filter(item =>
+    item.stock_id.toLowerCase().includes(q) ||
+    (item.company_name_short || '').toLowerCase().includes(q)
+  );
+  if (!filtered.length) {
+    grid.innerHTML = '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px;">NO MATCHING DATA</div>';
     return;
   }
-  items.forEach((item, i) => grid.appendChild(buildCard(item, i)));
+  filtered.forEach((item, i) => grid.appendChild(buildCard(item, i)));
 }
 
 // ── Fetch ──
@@ -280,12 +315,15 @@ async function loadSummary() {
       const stockIds = allItems.map(i => i.stock_id);
       const livePrices = await fetchAllLivePrices(stockIds);
       lastLivePrices = livePrices;
-      applyLivePricesToCards(livePrices, allItems);
+      applyLivePricesToCards(livePrices, allItems, isLiveTradingHours());
     }
 
   } catch (err) {
     console.error(err);
-    $('loading').innerHTML = `<div class="loading-text" style="color:var(--red);">ERROR: ${err?.message || err}</div>`;
+    $('loading').innerHTML = `
+      <div class="loading-text" style="color:var(--red);">ERROR: ${err?.message || err}</div>
+      <button class="sort-btn" onclick="loadSummary()" style="margin-top:10px;">重試</button>
+    `;
   }
 }
 
@@ -350,21 +388,21 @@ function isAutoUpdateHours() {
       const stockIds = allItems.map(i => i.stock_id);
       const livePrices = await fetchAllLivePrices(stockIds);
       lastLivePrices = livePrices;
-      applyLivePricesToCards(livePrices, allItems);
+      applyLivePricesToCards(livePrices, allItems, isLiveTradingHours());
       await loadTaiex();
       indicator.style.height = '0';
     }
   }, { passive: true });
 })();
-function applyLivePricesToCards(livePrices, items) {
+function applyLivePricesToCards(livePrices, items, isLive = false) {
   document.querySelectorAll('.card[data-stock-id]').forEach(card => {
     const stockId = card.dataset.stockId;
     const livePrice = livePrices[stockId];
     if (livePrice == null) return;
 
-    // Update price label to LIVE PRICE
+    // Update price label: LIVE PRICE 僅在真正交易時段顯示，否則顯示 LAST PRICE
     const priceLabel = card.querySelector('.price-label');
-    if (priceLabel) priceLabel.textContent = 'LIVE PRICE';
+    if (priceLabel) priceLabel.textContent = isLive ? 'LIVE PRICE' : 'LAST PRICE';
 
     // Update price display
     const priceEl = card.querySelector('.card-price-value');
@@ -394,6 +432,14 @@ function applyLivePricesToCards(livePrices, items) {
       const newVol = (livePrice / fairPrice) * 100;
       const volEl = card.querySelector('.card-vol-value');
       if (volEl) volEl.textContent = `${fmt(newVol, 2)} %`;
+    }
+
+    // Recalculate estimated yield with live price (殖利率與股價成反比)
+    const yieldEl = card.querySelector('.card-yield-value');
+    const baseYield = item.est_current_yield;
+    if (yieldEl && baseYield !== null && baseYield !== undefined && item.current_price && livePrice > 0) {
+      const newYield = Number(baseYield) * (Number(item.current_price) / livePrice);
+      if (Number.isFinite(newYield)) yieldEl.textContent = `${fmt(newYield, 2)} %`;
     }
 
     // Update band bar marker position
@@ -513,11 +559,19 @@ async function loadTaiex() {
       });
     }
   } catch {
-    // 靜默失敗，不影響主頁面
+    $('taiexBanner').style.display = 'flex';
+    $('taiexDrawdown').textContent = '資料載入失敗';
+    $('taiexDrawdown').className = 'taiex-drawdown alert';
+    $('taiexDate').textContent = '';
   }
 }
- 
+
 loadTaiex();
+
+$('stockSearch').addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  sortBy(currentSort);
+});
  
 // 交易時間內每分鐘重新抓一次
 // setInterval(() => {

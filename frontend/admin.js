@@ -25,11 +25,18 @@ const DATASET_FIELDS = {
   ],
 };
 
+const DATASET_HINTS = {
+  monthly_eps: '資料來源：每月查新聞（金控自結盈餘）；一般到損益表切換「單季／累計」標籤核對。',
+  yearly_revenue: '資料來源：損益表 → 營業收入（填前一年度）。',
+  dividend_history: '資料來源：查股利政策，可搭配財務比率表；至少補滿 7 年。',
+  historical_valuation: '最低／最高本益比：本益比河流圖；年殖利率：查股利政策。兩者都至少 7 年。',
+};
+
 const $ = id => document.getElementById(id);
 let currentRecords = {};
 
 function apiBase() { return localStorage.getItem(API_KEY) || ''; }
-function token() { return sessionStorage.getItem(TOKEN_KEY) || ''; }
+function token() { return localStorage.getItem(TOKEN_KEY) || ''; }
 function headers(json = false) {
   const result = { Authorization: `Bearer ${token()}` };
   if (json) result['Content-Type'] = 'application/json';
@@ -66,6 +73,7 @@ async function loadStocks() {
 
 function renderForm() {
   const dataset = $('datasetSelect').value;
+  $('datasetHint').textContent = DATASET_HINTS[dataset] || '';
   $('dataForm').innerHTML = DATASET_FIELDS[dataset].map(field => `
     <label>${field.label}<input required name="${field.name}" type="${field.type}" step="${field.step || ''}" min="${field.min || ''}" max="${field.max || ''}"></label>
   `).join('');
@@ -75,7 +83,7 @@ function renderForm() {
 function renderRecords() {
   const dataset = $('datasetSelect').value;
   const fields = DATASET_FIELDS[dataset];
-  const key = DATASET_FIELDS[dataset][0].name;
+  const key = fields[0].name;
   const rows = (currentRecords[dataset] || []).slice().sort((a, b) =>
     String(b[key] ?? '').localeCompare(String(a[key] ?? ''), 'en', { numeric: true })
   );
@@ -89,7 +97,14 @@ async function loadManualData() {
   const data = await request(`/api/admin/stocks/${encodeURIComponent(stockId)}/manual`);
   currentRecords = data.datasets || {};
   $('storageLabel').textContent = `儲存方式：${data.storage}`;
+  setSaveFlowHint(data.storage);
   renderRecords();
+}
+
+function setSaveFlowHint(storage) {
+  $('saveFlowHint').textContent = storage === 'github'
+    ? '儲存後會自動 commit 到 GitHub；Vercel 重新部署（約 1–2 分鐘）後，首頁與個股頁才會更新。'
+    : '本機模式：儲存後重新整理頁面即可看到更新。';
 }
 
 async function login() {
@@ -97,7 +112,7 @@ async function login() {
   if (base) localStorage.setItem(API_KEY, base); else localStorage.removeItem(API_KEY);
   const value = $('adminToken').value.trim();
   if (!value) return setMessage('loginMessage', '請輸入管理員 Token', 'error');
-  sessionStorage.setItem(TOKEN_KEY, value);
+  localStorage.setItem(TOKEN_KEY, value);
   $('loginBtn').disabled = true;
   try {
     const info = await request('/api/admin/verify');
@@ -108,7 +123,7 @@ async function login() {
     await loadManualData();
     $('storageLabel').textContent = `儲存方式：${info.storage}`;
   } catch (error) {
-    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     setMessage('loginMessage', error.message, 'error');
   } finally { $('loginBtn').disabled = false; }
 }
@@ -118,13 +133,19 @@ async function save(event) {
   const dataset = $('datasetSelect').value;
   const payload = Object.fromEntries(new FormData($('dataForm')).entries());
   for (const field of DATASET_FIELDS[dataset]) {
-    if (field.type === 'number') payload[field.name] = Number(payload[field.name]);
+    if (field.type === 'number') {
+      payload[field.name] = Number(payload[field.name]);
+      if (!Number.isFinite(payload[field.name])) {
+        return setMessage('saveMessage', `${field.label} 必須是數字`, 'error');
+      }
+    }
   }
   $('saveBtn').disabled = true;
   setMessage('saveMessage', '儲存中……');
   try {
     const result = await request(`/api/admin/stocks/${encodeURIComponent($('stockSelect').value)}/manual/${dataset}`, { method: 'PUT', body: JSON.stringify(payload) });
-    setMessage('saveMessage', `已儲存 ${result.key}（${result.storage}）`, 'success');
+    const deployNote = result.storage === 'github' ? '，Vercel 部署後生效' : '';
+    setMessage('saveMessage', `已儲存 ${result.key}（${result.storage}）${deployNote}`, 'success');
     $('dataForm').reset();
     await loadManualData();
   } catch (error) { setMessage('saveMessage', error.message, 'error'); }
@@ -150,7 +171,7 @@ async function addStock() {
   finally { $('addStockBtn').disabled = false; }
 }
 
-function logout() { sessionStorage.removeItem(TOKEN_KEY); window.location.reload(); }
+function logout() { localStorage.removeItem(TOKEN_KEY); window.location.reload(); }
 
 $('apiBase').value = localStorage.getItem(API_KEY) || '';
 $('loginBtn').addEventListener('click', login);

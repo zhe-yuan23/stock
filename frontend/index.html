@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>睡得著的投資</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
@@ -44,6 +44,8 @@
       font-family: var(--sans);
       min-height: 100vh;
       overflow-x: hidden;
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
 
     /* Scanline overlay */
@@ -67,10 +69,11 @@
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       padding: 0 20px;
+      padding-top: env(safe-area-inset-top);
       display: flex;
       align-items: center;
       gap: 0;
-      height: 52px;
+      height: calc(52px + env(safe-area-inset-top));
       position: sticky;
       top: 0;
       z-index: 100;
@@ -263,9 +266,34 @@
       letter-spacing: 0.05em;
     }
 
+    .stock-search {
+      width: 100%;
+      max-width: 260px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 16px; /* 避免 iOS Safari 聚焦時自動放大 */
+      padding: 6px 10px;
+      letter-spacing: 0.05em;
+      box-sizing: border-box;
+    }
+
+    @media (min-width: 769px) {
+      .stock-search { font-size: 11px; }
+    }
+
+    .stock-search:focus {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
+    }
+
     .toolbar-right {
       display: flex;
       align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
       gap: 8px;
     }
 
@@ -441,23 +469,36 @@
       margin-left: 2px;
     }
 
-    .volatility-wrap {
-      text-align: right;
+    .card-metrics {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-top: 2px;
     }
 
-    .volatility-label {
+    .metric-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
       font-family: var(--mono);
+      white-space: nowrap;
+    }
+
+    .metric-row .metric-label {
       font-size: 10px;
       color: var(--muted);
-      letter-spacing: 0.06em;
+      letter-spacing: 0.03em;
     }
 
-    .volatility-value {
-      font-family: var(--mono);
-      font-size: 13px;
+    .metric-row .metric-value {
+      font-size: 11px;
       font-weight: 700;
       color: var(--gold);
     }
+
+    .metric-row .metric-value.card-yield-value { color: var(--accent); }
 
     /* ── LOADING ── */
     .loading-screen {
@@ -647,10 +688,10 @@
 </header>
 
 <!-- ── TAIEX BANNER：加權指數警示列 ── -->
-<div class="taiex-banner" id="taiexBanner" style="display:none;">
+<div class="taiex-banner" id="taiexBanner">
   <span class="taiex-label">加權指數</span>
   <span class="taiex-close" id="taiexClose">—</span>
-  <span class="taiex-drawdown" id="taiexDrawdown">—</span>
+  <span class="taiex-drawdown" id="taiexDrawdown">載入中...</span>
   <span class="taiex-ath" id="taiexAth"></span>
   <span class="taiex-alert-badge" id="taiexAlertBadge">⚠ 距歷史高點 -10% 以上</span>
   <span class="taiex-date" id="taiexDate"></span>
@@ -660,11 +701,15 @@
   <div class="toolbar-left">
     <div class="year-label"><span id="targetYear">----</span> 年度 <span style="color:var(--muted2);font-size:13px;">/ 營收達成率總覽</span></div>
     <div class="sub-label" id="subLabel">LOADING DATA...</div>
+    <div class="search-wrap" style="margin-top:8px;">
+      <input type="search" id="stockSearch" placeholder="搜尋股票代號或名稱" class="stock-search">
+    </div>
   </div>
   <div class="toolbar-right">
     <button class="sort-btn active" id="sortAchieve" onclick="sortBy('achieve')">達成率↓</button>
     <button class="sort-btn" id="sortPrice" onclick="sortBy('price')">股價</button>
     <button class="sort-btn" id="sortVolatility" onclick="sortBy('vol')">波動位階↓</button>
+    <button class="sort-btn" id="sortYield" onclick="sortBy('yield')">殖利率↓</button>
   </div>
 </div>
 

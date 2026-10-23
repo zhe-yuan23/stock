@@ -27,6 +27,19 @@ function isTradingHours() {
   return (isTradingDay && minutes >= 9 * 60) || isNextMorning;
 }
 
+// 嚴格交易時段：僅用於決定是否顯示 "LIVE PRICE" 標籤
+function isLiveTradingHours() {
+  const param = new URLSearchParams(window.location.search).get('live');
+  if (param === '1') return true;
+  if (param === '0') return false;
+  const now = new Date();
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const day = tw.getDay();
+  const minutes = tw.getHours() * 60 + tw.getMinutes();
+  // 台灣股市交易時段：週一~五 09:00 ~ 13:30
+  return day >= 1 && day <= 5 && minutes >= 9 * 60 && minutes < 13 * 60 + 30;
+}
+
 // ── Fetch live price via backend proxy ──
 async function fetchLivePrice(stockId) {
   try {
@@ -43,9 +56,10 @@ async function fetchLivePrice(stockId) {
 // ── Clock ──
 function updateClock() {
   const now = new Date();
-  const h = String(now.getHours()).padStart(2, '0');
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const s = String(now.getSeconds()).padStart(2, '0');
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const h = String(tw.getHours()).padStart(2, '0');
+  const m = String(tw.getMinutes()).padStart(2, '0');
+  const s = String(tw.getSeconds()).padStart(2, '0');
   $('clock').textContent = `${h}:${m}:${s}`;
 }
 setInterval(updateClock, 1000);
@@ -63,6 +77,82 @@ function fmtPct(v, d = 2) {
   const n = Number(v);
   return Number.isFinite(n) ? `${n.toFixed(d)} %` : '—';
 }
+
+function achieveClass(rate) {
+  if (rate === null || rate === undefined) return 'gray';
+  const v = Number(rate);
+  if (!Number.isFinite(v)) return 'gray';
+  if (v >= 100) return 'green';
+  if (v >= 70) return 'orange';
+  return 'blue';
+}
+
+// ── Table sort (client-side) ──
+let _tableRows = [];
+let _tableSort = { key: 'date', desc: true };
+
+function renderTable(rows) {
+  const tbody = $('tableBody');
+  tbody.innerHTML = '';
+  for (const row of rows) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${row.date ? row.date.slice(0, 7) : '—'}</td>
+      <td>${row.revenue_mon_bil !== null ? fmt(row.revenue_mon_bil) : '—'}</td>
+      <td style="color:${(row.yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.yoy_percent !== null ? fmtPct(row.yoy_percent) : '—'}</td>
+      <td>${row.revenue_ytd_bil !== null ? fmt(row.revenue_ytd_bil) : '—'}</td>
+      <td style="color:${(row.ytd_yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.ytd_yoy_percent !== null ? fmtPct(row.ytd_yoy_percent) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function compareValues(av, bv) {
+  const na = Number(av);
+  const nb = Number(bv);
+  // 數值欄位：都能轉成數字時，用數值比較
+  if (!Number.isNaN(na) && !Number.isNaN(nb) && String(av).trim() !== '' && String(bv).trim() !== '') {
+    return na - nb;
+  }
+  // 日期欄位：YYYY-MM 或 YYYY-MM-DD，直接字串比較即可（ISO 格式）
+  const sa = String(av ?? '');
+  const sb = String(bv ?? '');
+  return sa.localeCompare(sb, undefined, { numeric: true });
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    const isActive = th.dataset.sort === _tableSort.key;
+    th.textContent = th.textContent.replace(/[▲▼]\s*$/, '').trim();
+    if (isActive) th.textContent += _tableSort.desc ? ' ▼' : ' ▲';
+  });
+}
+
+function sortTable(key) {
+  if (_tableSort.key === key) {
+    _tableSort.desc = !_tableSort.desc;
+  } else {
+    _tableSort.key = key;
+    _tableSort.desc = true;
+  }
+  const sorted = [..._tableRows].sort((a, b) => {
+    const av = a[key];
+    const bv = b[key];
+    let cmp = 0;
+    if (av === null || av === undefined) cmp = 1;
+    else if (bv === null || bv === undefined) cmp = -1;
+    else cmp = compareValues(av, bv);
+    return _tableSort.desc ? -cmp : cmp;
+  });
+  renderTable(sorted);
+  updateSortIndicators();
+}
+
+// 事件委派：點擊表頭或排序按鈕（避免 inline onclick 在部分環境失效）
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-sort]');
+  if (el) sortTable(el.dataset.sort);
+});
 
 function metricCard(label, value, helpText = null) {
   const el = document.createElement('div');
@@ -117,9 +207,11 @@ async function loadDetail() {
         ? `${fmt(v.current_price, 2)}<span class="hero-price-unit"> 元</span>`
         : '—';
       $('heroPE').textContent = v.current_pe !== null ? `${fmt(v.current_pe, 2)} 倍` : '—';
-      $('heroAchieve').textContent = data.metrics?.revenue_achieve_rate !== null
-        ? `${fmt(data.metrics.revenue_achieve_rate, 1)} %`
-        : '—';
+      const achieveRate = data.metrics?.revenue_achieve_rate;
+      const achieveEl = $('heroAchieve');
+      const hasRate = achieveRate !== null && achieveRate !== undefined && Number.isFinite(Number(achieveRate));
+      achieveEl.textContent = hasRate ? `${fmt(achieveRate, 1)} %` : '—';
+      achieveEl.className = `hero-kpi-value ${achieveClass(achieveRate)}`;
       $('heroVolatility').textContent = v.price_volatility !== null ? `${fmt(v.price_volatility, 2)} %` : '—';
       $('heroYield').textContent = v.est_current_yield !== null ? `${fmt(v.est_current_yield, 2)} %` : '—';
       $('heroDate').textContent = latestDate || '—';
@@ -204,20 +296,9 @@ async function loadDetail() {
     });
 
     // ── Table ──
-    const tbody = $('tableBody');
-    tbody.innerHTML = '';
-    const rows = (data.table_rows || []).slice(); // latest first .reverse()
-    for (const row of rows) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${row.date ? row.date.slice(0, 7) : '—'}</td>
-        <td>${row.revenue_mon_bil !== null ? fmt(row.revenue_mon_bil) : '—'}</td>
-        <td style="color:${(row.yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.yoy_percent !== null ? fmtPct(row.yoy_percent) : '—'}</td>
-        <td>${row.revenue_ytd_bil !== null ? fmt(row.revenue_ytd_bil) : '—'}</td>
-        <td style="color:${(row.ytd_yoy_percent ?? 0) > 0 ? 'var(--red)' : 'var(--green)'}">${row.ytd_yoy_percent !== null ? fmtPct(row.ytd_yoy_percent) : '—'}</td>
-      `;
-      tbody.appendChild(tr);
-    }
+    _tableRows = (data.table_rows || []).slice(); // latest first .reverse()
+    renderTable(_tableRows);
+    updateSortIndicators();
 
     // ── Valuation metrics ──
     const valMetrics = $('valuationMetrics');
@@ -283,6 +364,7 @@ async function loadDetail() {
         <div class="section-title">📐 本益比／殖利率區間估價</div>
         <div class="section-line"></div>
       </div>
+      <div class="section-note"><strong>市場過去願意用多少錢交易它</strong>：同一組推估 EPS／股利，套用近 7 年本益比與殖利率區間，算出便宜～昂貴的範圍。</div>
     `;
     $('content').appendChild(bandSection);
 
@@ -393,7 +475,7 @@ async function loadDetail() {
       const stockId = getQueryParam('stock_id');
       const livePrice = await fetchLivePrice(stockId);
       if (livePrice !== null) {
-        applyLivePriceToDetail(livePrice, v, data);
+        applyLivePriceToDetail(livePrice, v, data, isLiveTradingHours());
       }
     }
 
@@ -478,7 +560,7 @@ function switchTab(tab) {
       const stockId = getQueryParam('stock_id');
       const livePrice = await fetchLivePrice(stockId);
       if (livePrice !== null && _detailValuation) {
-        applyLivePriceToDetail(livePrice, _detailValuation, _detailData);
+        applyLivePriceToDetail(livePrice, _detailValuation, _detailData, isLiveTradingHours());
       }
       indicator.style.height = '0';
     }
@@ -486,14 +568,14 @@ function switchTab(tab) {
 })();
 
 // ── Apply live price to stock detail page ──
-function applyLivePriceToDetail(livePrice, v, data) {
+function applyLivePriceToDetail(livePrice, v, data, isLive = false) {
   // 1. Hero strip price + label
   const heroPrice = $('heroPrice');
   if (heroPrice) {
     heroPrice.innerHTML = `${fmt(livePrice, 2)}<span class="hero-price-unit"> 元</span>`;
   }
   const label = $('heroPriceLabel');
-  if (label) label.textContent = 'LIVE PRICE';
+  if (label) label.textContent = isLive ? 'LIVE PRICE' : 'LAST PRICE';
 
   // 2. Recalculate derived values with live price
   const fairPrice = v?.est_fair_price;
@@ -622,6 +704,9 @@ async function loadNews(stockId, stockName) {
     });
 
   } catch (err) {
-    newsList.innerHTML = `<div class="news-error">新聞載入失敗：${err.message}</div>`;
+    newsList.innerHTML = `
+      <div class="news-error">新聞載入失敗：${err.message}</div>
+      <button class="sort-btn" onclick="loadNews('${stockId}', '${stockName}')" style="margin-top:8px;display:inline-block;">重試</button>
+    `;
   }
 }
