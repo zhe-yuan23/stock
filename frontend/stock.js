@@ -107,6 +107,19 @@ function renderTable(rows) {
   }
 }
 
+function compareValues(av, bv) {
+  const na = Number(av);
+  const nb = Number(bv);
+  // 數值欄位：都能轉成數字時，用數值比較
+  if (!Number.isNaN(na) && !Number.isNaN(nb) && String(av).trim() !== '' && String(bv).trim() !== '') {
+    return na - nb;
+  }
+  // 日期欄位：YYYY-MM 或 YYYY-MM-DD，直接字串比較即可（ISO 格式）
+  const sa = String(av ?? '');
+  const sb = String(bv ?? '');
+  return sa.localeCompare(sb, undefined, { numeric: true });
+}
+
 function sortTable(key) {
   if (_tableSort.key === key) {
     _tableSort.desc = !_tableSort.desc;
@@ -115,9 +128,12 @@ function sortTable(key) {
     _tableSort.desc = true;
   }
   const sorted = [..._tableRows].sort((a, b) => {
-    const av = a[key] ?? '';
-    const bv = b[key] ?? '';
-    const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
+    const av = a[key];
+    const bv = b[key];
+    let cmp = 0;
+    if (av === null || av === undefined) cmp = 1;
+    else if (bv === null || bv === undefined) cmp = -1;
+    else cmp = compareValues(av, bv);
     return _tableSort.desc ? -cmp : cmp;
   });
   renderTable(sorted);
