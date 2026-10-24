@@ -281,13 +281,18 @@ class ManualDataStore:
             df = df.reindex(columns=spec["columns"])
 
         key = spec["key"]
-        if key in df.columns:
+        if key in df.columns and not df.empty:
             df = df[df[key].astype(str) != str(record[key])]
         df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
 
         if dataset == "monthly_eps":
             df = self._recalculate_eps_ytd(df)
         else:
+            if key in df.columns and not df.empty:
+                if key == "year":
+                    df[key] = pd.to_numeric(df[key], errors="coerce").astype("Int64")
+                else:
+                    df[key] = df[key].astype(str)
             df = df.sort_values(key).reset_index(drop=True)
 
         output = io.StringIO()
