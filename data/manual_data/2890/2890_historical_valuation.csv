@@ -1,5 +1,5 @@
-year,stock_id,lowest_pe,highest_pe,annual_yield_pct
-2019,2890,11.71,13.21,5.29
+﻿year,stock_id,lowest_pe,highest_pe,annual_yield_pct
+2019,2890,9.05,12.03,5.29
 2020,2890,9.61,12.67,6.11
 2021,2890,9.51,11.29,5.17
 2022,2890,10.9,13.37,5.24
