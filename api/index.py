@@ -516,6 +516,30 @@ def get_stock_detail(stock_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/stocks/{stock_id}/dividend")
+def get_stock_dividend(stock_id: str) -> Dict[str, Any]:
+    """Return the manually maintained annual dividend history of a stock."""
+    stock_id = _valid_stock_id(stock_id)
+    dividend_path = MANUAL_DIR / stock_id / f"{stock_id}_dividend_history.csv"
+    if not dividend_path.exists():
+        raise HTTPException(status_code=404, detail=f"Missing file: {dividend_path}")
+
+    df = pd.read_csv(dividend_path)
+    rows = []
+    for _, r in df.iterrows():
+        year = _to_jsonable(r["year"])
+        # pandas 可能推斷出 float（如 2018.0），年份是整數時轉回 int
+        if year is not None and float(year).is_integer():
+            year = int(year)
+        rows.append({
+            "year": year,
+            "eps": _to_jsonable(r["eps"]),
+            "cash_div": _to_jsonable(r["cash_div"]),
+            "stock_div": _to_jsonable(r["stock_div"]),
+        })
+    return {"stock_id": stock_id, "dividends": rows}
+
+
 @app.get("/api/live-prices")
 def get_live_prices(ids: str = Query(..., description="逗號分隔的股票代號，例如 2330,2881")) -> Dict[str, Any]:
     """Fetch live prices for multiple stocks concurrently."""

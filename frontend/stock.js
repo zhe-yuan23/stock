@@ -134,7 +134,7 @@ function compareValues(av, bv) {
 }
 
 function updateSortIndicators() {
-  document.querySelectorAll('th[data-sort]').forEach(th => {
+  document.querySelectorAll('#tabPaneTable th[data-sort]').forEach(th => {
     const isActive = th.dataset.sort === _tableSort.key;
     th.textContent = th.textContent.replace(/[▲▼]\s*$/, '').trim();
     if (isActive) th.textContent += _tableSort.desc ? ' ▼' : ' ▲';
@@ -161,11 +161,127 @@ function sortTable(key) {
   updateSortIndicators();
 }
 
-// 事件委派：點擊表頭或排序按鈕（避免 inline onclick 在部分環境失效）
+// ── Tab switching (news / table / dividend) ──
+// 切換分頁時同步更新按鈕 active 狀態；年股利分頁第一次點到才載入資料
+function switchTab(tab) {
+  const panes = { news: 'tabPaneNews', table: 'tabPaneTable', dividend: 'tabPaneDividend' };
+  for (const [name, paneId] of Object.entries(panes)) {
+    $(paneId).style.display = name === tab ? '' : 'none';
+  }
+  $('tabNews').classList.toggle('active', tab === 'news');
+  $('tabTable').classList.toggle('active', tab === 'table');
+  $('tabDividend').classList.toggle('active', tab === 'dividend');
+  if (tab === 'dividend') loadDividend();
+}
+
+// ── Dividend history (annual) ──
+let _dividendRows = [];
+let _dividendSort = { key: 'year', desc: true };
+let _dividendLoading = false;
+let _dividendStockId = null;
+
+// 依 _dividendSort 排序股利資料後渲染表格
+function renderDividendTable(rows) {
+  const tbody = $('dividendTableBody');
+  tbody.innerHTML = '';
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">暫無資料</td></tr>';
+    return;
+  }
+  for (const row of rows) {
+    // 股票股利 0 顯示灰色；現金股利 0 顯示紅色示警
+    const stockColor = row.stock_div === 0 ? 'var(--muted2)' : 'inherit';
+    const cashColor = row.cash_div === 0 ? 'var(--red)' : 'var(--green)';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${row.year ?? '—'}</td>
+      <td>${row.eps !== null ? fmt(row.eps) : '—'}</td>
+      <td style="color:${cashColor}">${row.cash_div !== null ? fmt(row.cash_div) : '—'}</td>
+      <td style="color:${stockColor}">${row.stock_div !== null ? fmt(row.stock_div) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// 更新年股利表格的表頭排序指示（▲/▼）
+function updateDividendSortIndicators() {
+  document.querySelectorAll('#tabPaneDividend th[data-sort]').forEach(th => {
+    const isActive = th.dataset.sort === _dividendSort.key;
+    th.textContent = th.textContent.replace(/[▲▼]\s*$/, '').trim();
+    if (isActive) th.textContent += _dividendSort.desc ? ' ▼' : ' ▲';
+  });
+}
+
+// 點表頭排序年股利表格（同一欄再點一次切換升降冪）
+function sortDividendTable(key) {
+  if (_dividendSort.key === key) {
+    _dividendSort.desc = !_dividendSort.desc;
+  } else {
+    _dividendSort.key = key;
+    _dividendSort.desc = true;
+  }
+  const sorted = [..._dividendRows].sort((a, b) => {
+    const av = a[key];
+    const bv = b[key];
+    let cmp = 0;
+    if (av === null || av === undefined) cmp = 1;
+    else if (bv === null || bv === undefined) cmp = -1;
+    else cmp = compareValues(av, bv);
+    return _dividendSort.desc ? -cmp : cmp;
+  });
+  renderDividendTable(sorted);
+  updateDividendSortIndicators();
+}
+
+const _DIVIDEND_KEYS = new Set(['year', 'eps', 'cash_div', 'stock_div']);
+
+// ── 事件委派：點擊表頭或排序按鈕（避免 inline onclick 在部分環境失效）──
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-sort]');
-  if (el) sortTable(el.dataset.sort);
+  if (!el) return;
+  if (_DIVIDEND_KEYS.has(el.dataset.sort) && el.closest('#tabPaneDividend')) {
+    sortDividendTable(el.dataset.sort);
+  } else {
+    sortTable(el.dataset.sort);
+  }
 });
+
+// 載入當前股票的年股利資料；第一次載入後用 _dividendRows 快取，不重複打 API
+async function loadDividend() {
+  const stockId = getQueryParam('stock_id');
+  if (!stockId) return;
+
+  // 換股票時重置快取，仍顯示舊資料前先不動
+  if (_dividendStockId !== stockId) {
+    _dividendRows = [];
+    _dividendStockId = stockId;
+    _dividendSort = { key: 'year', desc: true };
+  }
+  if (_dividendRows.length || _dividendLoading) {
+    updateDividendSortIndicators();
+    return;
+  }
+  _dividendLoading = true;
+  const tbody = $('dividendTableBody');
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;border:none;">LOADING...</td></tr>';
+
+  try {
+    const res = await fetch(`${getApiBase()}/api/stocks/${encodeURIComponent(stockId)}/dividend`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _dividendRows = (data.dividends || []).filter(r =>
+      r.year !== null || r.eps !== null || r.cash_div !== null || r.stock_div !== null
+    );
+  } catch {
+    _dividendRows = [];
+  }
+  _dividendLoading = false;
+  _dividendSort = { key: 'year', desc: true };
+  renderDividendTable(_dividendRows.length ? [..._dividendRows].sort((a, b) => (b.year ?? 0) - (a.year ?? 0)) : _dividendRows);
+  updateDividendSortIndicators();
+}
+
+// ── Back button ──
 
 function metricCard(label, value, helpText = null) {
   const el = document.createElement('div');
@@ -524,15 +640,6 @@ let _detailData = null;
 //     applyLivePriceToDetail(livePrice, _detailValuation, _detailData);
 //   }
 // }, 30 * 60 * 1000);  //每 60 分鐘執行一次（30 × 60 × 1000 毫秒）
-
-// ── Tab switch ──
-function switchTab(tab) {
-  const isNews = tab === 'news';
-  $('tabPaneNews').style.display  = isNews ? 'block' : 'none';
-  $('tabPaneTable').style.display = isNews ? 'none'  : 'block';
-  $('tabNews').classList.toggle('active', isNews);
-  $('tabTable').classList.toggle('active', !isNews);
-}
 
 // ── Pull to Refresh ──
 (function initPullToRefresh() {

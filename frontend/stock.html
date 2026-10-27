@@ -719,6 +719,7 @@
         <div class="tab-bar">
           <button class="tab-btn active" id="tabNews" onclick="switchTab('news')">📰 相關新聞</button>
           <button class="tab-btn" id="tabTable" onclick="switchTab('table')">近二年明細</button>
+          <button class="tab-btn" id="tabDividend" onclick="switchTab('dividend')">💸 年股利</button>
         </div>
         <!-- News tab -->
         <div id="tabPaneNews">
@@ -743,6 +744,22 @@
             </table>
           </div>
         </div>
+        <!-- Dividend tab -->
+        <div id="tabPaneDividend" style="display:none;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-sort="year">年度</th>
+                  <th data-sort="eps">EPS</th>
+                  <th data-sort="cash_div">現金股利(元)</th>
+                  <th data-sort="stock_div">股票股利(元)</th>
+                </tr>
+              </thead>
+              <tbody id="dividendTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -764,25 +781,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="stock.js"></script>
-<script>
-  function switchTab(tab) {
-    const newsPane  = document.getElementById('tabPaneNews');
-    const tablePane = document.getElementById('tabPaneTable');
-    const newsBtn   = document.getElementById('tabNews');
-    const tableBtn  = document.getElementById('tabTable');
-    if (tab === 'news') {
-      newsPane.style.display  = '';
-      tablePane.style.display = 'none';
-      newsBtn.classList.add('active');
-      tableBtn.classList.remove('active');
-    } else {
-      newsPane.style.display  = 'none';
-      tablePane.style.display = '';
-      newsBtn.classList.remove('active');
-      tableBtn.classList.add('active');
-    }
-  }
-</script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
