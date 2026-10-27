@@ -64,6 +64,10 @@
     /* 防止 iOS 旋轉或系統字級設定把文字自動放大造成版面位移 */
     html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
+    /* 關閉原生下拉反彈：iOS PWA 中原生橡皮筋會吃掉自訂下拉手勢，
+       使 indicator 無法顯示；由自訂 touchmove preventDefault 接手 */
+    html { overscroll-behavior-y: none; }
+
     body {
       background: var(--bg);
       color: var(--text);
@@ -794,6 +798,30 @@
       navigator.serviceWorker.register('service-worker.js');
     });
   }
+</script>
+<!-- 臨時診斷面板（merge 前移除）：顯示下拉手勢相關即時狀態，僅 iOS PWA 顯示 -->
+<script>
+  (function () {
+    if (!navigator.standalone) return;
+    const panel = document.createElement('div');
+    panel.style.cssText = 'position:fixed;left:6px;bottom:calc(6px + env(safe-area-inset-bottom));z-index:900;background:rgba(10,14,20,.9);border:1px solid #1c2530;border-radius:4px;color:#6b8096;font:10px/1.5 ui-monospace,monospace;padding:4px 6px;pointer-events:none;white-space:pre;';
+    document.body.appendChild(panel);
+    let tS = 0, tM = 0, tE = 0;
+    document.addEventListener('touchstart', () => { tS++; tM = 0; tE = 0; }, { passive: true });
+    document.addEventListener('touchmove', () => { tM++; }, { passive: true });
+    document.addEventListener('touchend', () => { tE++; }, { passive: true });
+    setInterval(() => {
+      const se = document.scrollingElement || document.documentElement;
+      const vv = window.visualViewport;
+      const ind = document.getElementById('pullIndicator');
+      const indH = ind ? (parseFloat(ind.style.height) || 0) : -1;
+      panel.textContent =
+        `tS:${tS} tM:${tM} tE:${tE}\n` +
+        `scrollTop:${se.scrollTop} scrollY:${window.scrollY}\n` +
+        `vv.scale:${vv ? vv.scale.toFixed(2) : '-'} innerH:${window.innerHeight}\n` +
+        `trade:${(typeof isTradingHours === 'function' && isTradingHours()) ? 'Y' : 'N'} indH:${indH.toFixed(0)}`;
+    }, 400);
+  })();
 </script>
 </body>
 </html>
