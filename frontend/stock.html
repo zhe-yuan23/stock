@@ -2,7 +2,30 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <script>
+    // iOS PWA standalone：開啟或回到前景時，重置卡住的視窗縮放比例
+    // 作法：重寫一次 viewport meta 觸發 WebKit 重新計算 scale，再把畫面拉回頂部
+    (function () {
+      if (!navigator.standalone) return;
+      const meta = document.querySelector('meta[name="viewport"]');
+      if (!meta) return;
+      const original = meta.getAttribute('content');
+      const resetScale = () => {
+        const y = window.scrollY;
+        meta.setAttribute('content', original + ', maximum-scale=1');
+        requestAnimationFrame(() => {
+          meta.setAttribute('content', original);
+          window.scrollTo(0, y);
+        });
+      };
+      document.addEventListener('gesturestart', e => e.preventDefault());
+      window.addEventListener('pageshow', resetScale);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) resetScale();
+      });
+    })();
+  </script>
   <title>睡得著的投資 - 個股</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
