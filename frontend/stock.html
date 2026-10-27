@@ -61,8 +61,8 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* 停用原生下拉反彈／瀏覽器原生下拉重整，讓自訂下拉更新接手 */
-    html { overscroll-behavior-y: none; }
+    /* 防止 iOS 旋轉或系統字級設定把文字自動放大造成版面位移 */
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
     body {
       background: var(--bg);
@@ -178,6 +178,16 @@
       font-family: var(--mono);
       font-size: 12px;
       color: var(--muted2);
+    }
+
+    /* ── 手機窄版 header 收納：避免內容總寬超過裝置寬度被右緣裁切 ── */
+    @media (max-width: 640px) {
+      header { padding: 0 12px; gap: 8px; }
+      .logo-text { display: none; }
+      .logo-block { gap: 6px; padding-right: 10px; }
+      .back-btn { padding: 5px 9px; font-size: 10px; }
+      .header-stock-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #clock { font-size: 11px; }
     }
 
     /* ── HERO STRIP ── */
