@@ -495,7 +495,8 @@
     /* ── PULL TO REFRESH ── */
     #pullIndicator {
       position: fixed;
-      top: 0;
+      /* 從狀態列/動態島下方滑出，cover 模式下 top:0 會被動態島與狀態列蓋住 */
+      top: env(safe-area-inset-top, 0px);
       left: 0;
       right: 0;
       display: flex;
