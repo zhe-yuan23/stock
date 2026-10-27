@@ -65,6 +65,19 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
+// ── Refresh timestamp ──
+// 把最近一次完成資料抓取的時間（台北時間 HH:MM）寫進 #refreshTime
+// 輸入：無；輸出：無（副作用為更新 DOM 文字）
+function markRefreshed() {
+  const el = $('refreshTime');
+  if (!el) return;
+  const now = new Date();
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const h = String(tw.getHours()).padStart(2, '0');
+  const m = String(tw.getMinutes()).padStart(2, '0');
+  el.textContent = `・刷新 ${h}:${m}`;
+}
+
 // ── Formatters ──
 function fmt(v, d = 2) {
   if (v === null || v === undefined) return '—';
@@ -214,7 +227,8 @@ async function loadDetail() {
       achieveEl.className = `hero-kpi-value ${achieveClass(achieveRate)}`;
       $('heroVolatility').textContent = v.price_volatility !== null ? `${fmt(v.price_volatility, 2)} %` : '—';
       $('heroYield').textContent = v.est_current_yield !== null ? `${fmt(v.est_current_yield, 2)} %` : '—';
-      $('heroDate').textContent = latestDate || '—';
+      // 日期行尾保留 #refreshTime span，所以用 innerHTML 重寫
+      $('heroDate').innerHTML = `${latestDate || '—'}<span id="refreshTime" class="refresh-time"></span>`;
     }
     $('heroStrip').style.display = 'flex';
 
@@ -478,6 +492,7 @@ async function loadDetail() {
         applyLivePriceToDetail(livePrice, v, data, isLiveTradingHours());
       }
     }
+    markRefreshed();
 
   } catch (err) {
     console.error(err);
@@ -526,8 +541,22 @@ function switchTab(tab) {
   let pulling = false;
   const indicator = document.getElementById('pullIndicator');
 
+  // 頂部判斷：用 scrollingElement，iOS 縮放/彈跳時比 window.scrollY 可靠
+  function atTop() {
+    const se = document.scrollingElement || document.documentElement;
+    return se.scrollTop <= 0;
+  }
+
+  // 重置下拉狀態與 indicator 顯示
+  function resetIndicator() {
+    pulling = false;
+    indicator.style.height = '0';
+    indicator.classList.remove('ready');
+    indicator.textContent = '↓ 下拉更新價格';
+  }
+
   document.addEventListener('touchstart', e => {
-    if (window.scrollY === 0) {
+    if (atTop()) {
       startY = e.touches[0].clientY;
       pulling = true;
     }
@@ -537,6 +566,8 @@ function switchTab(tab) {
     if (!pulling) return;
     const dist = Math.min(e.touches[0].clientY - startY, THRESHOLD * 1.5);
     if (dist <= 0) return;
+    // 從頂部往下拉時阻斷原生反彈／原生下拉重整，改由自訂 indicator 接手
+    if (atTop()) e.preventDefault();
     indicator.style.height = `${Math.min(dist * 0.5, 44)}px`;
     if (dist >= THRESHOLD) {
       indicator.textContent = '↑ 放開更新';
@@ -545,7 +576,7 @@ function switchTab(tab) {
       indicator.textContent = '↓ 下拉更新價格';
       indicator.classList.remove('ready');
     }
-  }, { passive: true });
+  }, { passive: false });
 
   document.addEventListener('touchend', async e => {
     if (!pulling) return;
@@ -562,9 +593,13 @@ function switchTab(tab) {
       if (livePrice !== null && _detailValuation) {
         applyLivePriceToDetail(livePrice, _detailValuation, _detailData, isLiveTradingHours());
       }
+      markRefreshed();
       indicator.style.height = '0';
     }
   }, { passive: true });
+
+  // 手勢被系統打斷（來電、通知、切換 app）時重置狀態
+  document.addEventListener('touchcancel', resetIndicator);
 })();
 
 // ── Apply live price to stock detail page ──

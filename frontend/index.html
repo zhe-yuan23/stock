@@ -2,7 +2,30 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <script>
+    // iOS PWA standalone：開啟或回到前景時，重置卡住的視窗縮放比例
+    // 作法：重寫一次 viewport meta 觸發 WebKit 重新計算 scale，再把畫面拉回頂部
+    (function () {
+      if (!navigator.standalone) return;
+      const meta = document.querySelector('meta[name="viewport"]');
+      if (!meta) return;
+      const original = meta.getAttribute('content');
+      const resetScale = () => {
+        const y = window.scrollY;
+        meta.setAttribute('content', original + ', maximum-scale=1');
+        requestAnimationFrame(() => {
+          meta.setAttribute('content', original);
+          window.scrollTo(0, y);
+        });
+      };
+      document.addEventListener('gesturestart', e => e.preventDefault());
+      window.addEventListener('pageshow', resetScale);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) resetScale();
+      });
+    })();
+  </script>
   <title>睡得著的投資</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
@@ -37,6 +60,9 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* 停用原生下拉反彈／瀏覽器原生下拉重整，讓自訂下拉更新接手 */
+    html { overscroll-behavior-y: none; }
 
     body {
       background: var(--bg);
@@ -574,6 +600,13 @@
       color: var(--accent);
     }
 
+    /* ── Refresh timestamp：資料最後刷新時刻的小字 ── */
+    /* 顏色/字族繼承所在行，只調小字級並禁止折行成塊 */
+    .refresh-time {
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
     /* ── STATS BAR ── */
     .stats-bar {
       display: flex;
@@ -700,7 +733,7 @@
 <div class="toolbar">
   <div class="toolbar-left">
     <div class="year-label"><span id="targetYear">----</span> 年度 <span style="color:var(--muted2);font-size:13px;">/ 營收達成率總覽</span></div>
-    <div class="sub-label" id="subLabel">LOADING DATA...</div>
+    <div class="sub-label" id="subLabel">LOADING DATA...<span id="refreshTime" class="refresh-time"></span></div>
     <div class="search-wrap" style="margin-top:8px;">
       <input type="search" id="stockSearch" placeholder="搜尋股票代號或名稱" class="stock-search">
     </div>
