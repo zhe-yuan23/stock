@@ -372,6 +372,10 @@
       padding: 14px 16px;
     }
 
+    /* grid 子項目預設 min-width:auto 會被表格最小寬度撐開，
+       導致整頁變寬並在 iOS PWA 觸發縮放；設 0 讓表格改在 .table-wrap 內滾動 */
+    .two-cols > .panel { min-width: 0; }
+
     .panel-title {
       font-family: var(--mono);
       font-size: 10px;
@@ -387,6 +391,7 @@
       overflow-x: auto;
       overflow-y: auto;
       max-height: 380px;
+      max-width: 100%;
     }
 
     table {

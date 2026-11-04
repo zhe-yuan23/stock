@@ -426,7 +426,9 @@ async function loadDetail() {
     });
 
     // ── Table ──
-    _tableRows = (data.table_rows || []).slice(); // latest first .reverse()
+    // 後端回傳為舊→新；預設改為新→舊，與表頭預設排序指示一致
+    _tableRows = (data.table_rows || []).slice();
+    _tableRows.sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')));
     renderTable(_tableRows);
     updateSortIndicators();
 
